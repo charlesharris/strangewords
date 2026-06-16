@@ -19,6 +19,20 @@ make run          # starts local Redis (docker) + the Go service on :8080
 # or: go test ./...   to run the suite (no external services; uses miniredis)
 ```
 
+## Easiest: play against the robot poet
+
+One command brings up Redis + the backend + an automated second participant
+("a robot poet friend"), so you can test with a single simulator:
+
+```sh
+./run_test_server_and_robot_poet_friend.sh
+```
+
+Then open the app on a simulator and tap **begin** — you'll be matched with the
+robot, and you'll see the poem written together in the script's terminal.
+Ctrl-C tears everything down (nothing is kept). Flags: `--once` (robot plays a
+single poem), `--keep` (leave the backend running after you quit).
+
 ## Run the iOS app
 
 Requires Xcode 16+ and [XcodeGen](https://github.com/yonom/XcodeGen) (`brew install xcodegen`).
