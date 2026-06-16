@@ -3,6 +3,7 @@
 Haiku for strangers — an anonymous, ephemeral iOS app for writing a tiny poem
 with someone you'll never meet, then letting it go.
 
+- **Current status (start here):** [`docs/STATUS.md`](docs/STATUS.md)
 - **Intent / philosophy:** [`brief.v4.md`](brief.v4.md)
 - **Build plan:** [`plan.v1.md`](plan.v1.md)
 

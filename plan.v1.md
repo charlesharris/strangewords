@@ -359,6 +359,8 @@ Vowel-cluster heuristic: lowercase, strip non-alpha, count contiguous vowel grou
 
 ## 11. Phased Task Breakdown
 
+> **Current progress:** see [`docs/STATUS.md`](docs/STATUS.md). As of 2026-06-16: phases 0, 1, 3 done; 4 partial; 2, 5, 6 not started (2 & 6 blocked on an Apple Developer account).
+
 Each phase ends in something runnable and verifiable. Phases 1–4 need no SQL and no Apple developer account beyond the device/simulator; Phase 5–6 need Apple/APNs credentials.
 
 ### Phase 0 — Scaffolding
