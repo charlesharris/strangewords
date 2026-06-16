@@ -53,7 +53,12 @@ trap cleanup EXIT INT TERM
 
 echo "▸ Starting Redis (Docker)…"
 ( cd "$SERVER" && docker compose up -d redis ) >/dev/null
-sleep 1
+# Wait until Redis actually answers before flushing, so the fresh-slate flush
+# can't race ahead of a not-yet-ready Redis and leave stale waiters behind.
+for _ in $(seq 1 30); do
+  [ "$( (cd "$SERVER" && docker compose exec -T redis redis-cli PING) 2>/dev/null | tr -d '\r' )" = "PONG" ] && break
+  sleep 0.3
+done
 # Fresh slate so no stale waiters from a previous run get matched.
 ( cd "$SERVER" && docker compose exec -T redis redis-cli FLUSHALL ) >/dev/null 2>&1 || true
 

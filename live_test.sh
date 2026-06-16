@@ -52,9 +52,23 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+# Preflight: take a clean :8080 so a stray backend can't shadow ours and
+# leave us talking to inconsistent state.
+if lsof -ti tcp:8080 -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "▸ Clearing a stray process on :8080…"
+  lsof -ti tcp:8080 -sTCP:LISTEN | xargs kill 2>/dev/null || true
+  sleep 1
+fi
+pkill -f '/tmp/sw-server' 2>/dev/null || true
+
 echo "▸ Starting Redis (Docker)…"
 ( cd "$SERVER" && docker compose up -d redis ) >/dev/null
-sleep 1
+# Wait until Redis actually answers before flushing (a fixed sleep can be too
+# short, leaving stale waiters that the robot then matches as a "ghost").
+for _ in $(seq 1 30); do
+  [ "$( (cd "$SERVER" && docker compose exec -T redis redis-cli PING) 2>/dev/null | tr -d '\r' )" = "PONG" ] && break
+  sleep 0.3
+done
 ( cd "$SERVER" && docker compose exec -T redis redis-cli FLUSHALL ) >/dev/null 2>&1 || true
 
 echo "▸ Building backend + robot poet…"
@@ -69,6 +83,10 @@ for _ in $(seq 1 40); do
 done
 if ! curl -sf "$BASE/healthz" >/dev/null 2>&1; then
   echo "Backend failed to start. See $SERVER_LOG"; exit 1
+fi
+# Make sure the healthy backend is *ours* (not a stray we failed to displace).
+if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+  echo "Backend exited on startup — something else is on :8080. See $SERVER_LOG"; exit 1
 fi
 
 # Build + launch the app on one simulator (backend is already healthy, so
