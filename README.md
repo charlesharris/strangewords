@@ -37,14 +37,31 @@ single poem), `--keep` (leave the backend running after you quit).
 
 Requires Xcode 16+ and [XcodeGen](https://github.com/yonom/XcodeGen) (`brew install xcodegen`).
 
+Easiest — build and launch on simulators with one command:
+
+```sh
+./run.sh            # two simulators — be both strangers yourself
+./run.sh --solo     # one simulator — pair it with the robot poet
+```
+
+Re-run `./run.sh` anytime to rebuild and relaunch with your latest changes.
+
+Or open it in Xcode directly:
+
 ```sh
 cd ios
-xcodegen generate                                   # regenerate the .xcodeproj
-open Strangewords.xcodeproj                          # then run on a simulator
+xcodegen generate && open Strangewords.xcodeproj
 ```
 
 The app talks to `http://127.0.0.1:8080` (the simulator shares the host
 network). Start the backend first.
+
+### Two ways to test both sides
+
+- **You + robot:** terminal 1 `./run_test_server_and_robot_poet_friend.sh`,
+  terminal 2 `./run.sh --solo`, then tap **begin** in the simulator.
+- **You + you:** start a backend (`cd server && make run`), then `./run.sh`
+  and tap **begin** on both simulators.
 
 ## Manual two-participant runbook (Phase 3 acceptance)
 
