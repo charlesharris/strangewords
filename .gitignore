@@ -1,0 +1,13 @@
+# Go
+/server/bin/
+*.test
+*.out
+
+# macOS
+.DS_Store
+
+# Xcode / iOS
+ios/**/xcuserdata/
+ios/**/*.xcuserstate
+ios/**/DerivedData/
+ios/build/
