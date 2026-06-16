@@ -40,19 +40,22 @@ enum TimeOfDay: String {
                 skyTop: Color(0xF7CDCB), skyBottom: Color(0xFCEFE6),
                 ink: Color(0x4E3B34), secondary: Color(0x927A70),
                 accent: Color(0xE2848C), onAccent: Color(0xFFFFFF),
-                sun: Color(0xFFD9B0), isDark: false)
+                sun: Color(0xFFD9B0), far: Color(0xE7B7B2), near: Color(0xD49A92),
+                isDark: false)
         case .afternoon:
             return Palette(
                 skyTop: Color(0xEBCFCB), skyBottom: Color(0xFAEDE6),
                 ink: Color(0x4C4741), secondary: Color(0x8E837C),
                 accent: Color(0xD98890), onAccent: Color(0xFFFFFF),
-                sun: Color(0xFFF1D8), isDark: false)
+                sun: Color(0xFFF1D8), far: Color(0xDCB1AC), near: Color(0xC79A91),
+                isDark: false)
         case .night:
             return Palette(
                 skyTop: Color(0x1E2138), skyBottom: Color(0x3B3551),
                 ink: Color(0xECE5DB), secondary: Color(0xA8A1B4),
                 accent: Color(0xC9B2CB), onAccent: Color(0x2A2440),
-                sun: Color(0xEDE7D6), isDark: true)
+                sun: Color(0xEDE7D6), far: Color(0x2A2E50), near: Color(0x15162C),
+                isDark: true)
         }
     }
 }
@@ -66,6 +69,8 @@ struct Palette {
     let accent: Color     // the single warm accent (strawberry/rose/wisteria)
     let onAccent: Color
     let sun: Color        // celestial body color
+    let far: Color        // distant ridge silhouette
+    let near: Color       // foreground hill silhouette
     let isDark: Bool
 }
 
