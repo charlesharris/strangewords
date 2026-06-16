@@ -9,6 +9,10 @@
 # terminal as you write it together. Ctrl-C tears everything down — nothing
 # kept. Use --keep to leave the backend running afterward.
 #
+# Flags:
+#   --keep                          leave the backend running after you quit
+#   --morning | --afternoon | --night   force the time-of-day theme
+#
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -21,9 +25,11 @@ KEEP=0
 for a in "$@"; do
   case "$a" in
     --keep) KEEP=1 ;;
+    --morning|--afternoon|--night) export SIMCTL_CHILD_SW_FORCE_TOD="${a#--}" ;;
     *) echo "unknown flag: $a"; exit 2 ;;
   esac
 done
+[[ -n "${SIMCTL_CHILD_SW_FORCE_TOD:-}" ]] && echo "▸ Theme: $SIMCTL_CHILD_SW_FORCE_TOD"
 
 BACKEND_PID=""
 BOT_PID=""

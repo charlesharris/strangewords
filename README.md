@@ -19,19 +19,27 @@ make run          # starts local Redis (docker) + the Go service on :8080
 # or: go test ./...   to run the suite (no external services; uses miniredis)
 ```
 
-## Easiest: play against the robot poet
+## Easiest: live test against the robot poet
 
-One command brings up Redis + the backend + an automated second participant
-("a robot poet friend"), so you can test with a single simulator:
+One command brings up Redis + the backend + the robot poet **and** builds and
+launches the app on a simulator:
 
 ```sh
-./run_test_server_and_robot_poet_friend.sh
+./live_test.sh                # uses your local time for the theme
+./live_test.sh --night        # force a theme: --morning | --afternoon | --night
+./live_test.sh --keep         # leave the backend running after you quit
 ```
 
-Then open the app on a simulator and tap **begin** — you'll be matched with the
-robot, and you'll see the poem written together in the script's terminal.
-Ctrl-C tears everything down (nothing is kept). Flags: `--once` (robot plays a
-single poem), `--keep` (leave the backend running after you quit).
+Then tap **begin** in the simulator — you'll be matched with the robot, and the
+poem appears in the script's terminal as you write it together. Ctrl-C tears
+everything down (nothing is kept).
+
+If you'd rather manage the simulator yourself, the backend+robot piece is also
+available on its own:
+
+```sh
+./run_test_server_and_robot_poet_friend.sh    # flags: --once, --keep
+```
 
 ## Run the iOS app
 
@@ -40,8 +48,9 @@ Requires Xcode 16+ and [XcodeGen](https://github.com/yonom/XcodeGen) (`brew inst
 Easiest — build and launch on simulators with one command:
 
 ```sh
-./run.sh            # two simulators — be both strangers yourself
-./run.sh --solo     # one simulator — pair it with the robot poet
+./run.sh                  # two simulators — be both strangers yourself
+./run.sh --solo           # one simulator — pair it with the robot poet
+./run.sh --solo --night   # force a theme: --morning | --afternoon | --night
 ```
 
 Re-run `./run.sh` anytime to rebuild and relaunch with your latest changes.

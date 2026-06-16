@@ -3,8 +3,9 @@
 # run.sh — build the iOS app with Xcode's toolchain and launch it on
 # simulator(s) so you can run both sides of the test.
 #
-#   ./run.sh           two simulators (be both strangers yourself)
-#   ./run.sh --solo    one simulator   (pair with the robot poet instead)
+#   ./run.sh                two simulators (be both strangers yourself)
+#   ./run.sh --solo         one simulator   (pair with the robot poet instead)
+#   ./run.sh --solo --night force a theme: --morning | --afternoon | --night
 #
 # The backend must be running. Start it in another terminal with:
 #   ./run_test_server_and_robot_poet_friend.sh        (backend + robot)
@@ -23,9 +24,11 @@ DEVICES=("iPhone 16" "iPhone 16 Pro")
 for a in "$@"; do
   case "$a" in
     --solo|--one) DEVICES=("iPhone 16") ;;
+    --morning|--afternoon|--night) export SIMCTL_CHILD_SW_FORCE_TOD="${a#--}" ;;
     *) echo "unknown flag: $a"; exit 2 ;;
   esac
 done
+[[ -n "${SIMCTL_CHILD_SW_FORCE_TOD:-}" ]] && echo "▸ Forcing theme: $SIMCTL_CHILD_SW_FORCE_TOD"
 
 command -v xcodegen >/dev/null || { echo "xcodegen not found — brew install xcodegen"; exit 1; }
 command -v xcodebuild >/dev/null || { echo "xcodebuild not found — install Xcode"; exit 1; }
