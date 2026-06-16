@@ -1,20 +1,21 @@
 import Foundation
-import Security
 
-/// Minimal Keychain wrapper for the participant token — the only secret the
-/// client holds. It is scoped to the single active engagement and cleared on
-/// dissolution (brief.v4.md §7). The sessionId is not secret and lives in
-/// UserDefaults alongside it for resume.
+/// Storage for the participant token and the active sessionId — used to resume
+/// the single active engagement (brief.v4.md §7).
+///
+/// Backed by UserDefaults: the token is a short-lived, infrastructural anonymous
+/// bearer credential (scoped to one engagement, erased on dissolution), not a
+/// durable secret. UserDefaults is app-sandboxed and works on unsigned
+/// simulator builds, where Keychain access requires a signing entitlement and
+/// otherwise fails silently. If hardware-backed storage is ever wanted on
+/// signed builds, this is the single place to change.
 enum TokenStore {
-    private static let service = "com.strangewords.app"
-    private static let account = "participantToken"
+    private static let tokenKey = "sw.participantToken"
     private static let sessionKey = "sw.sessionId"
 
     static var token: String? {
-        get { keychainRead() }
-        set {
-            if let newValue { keychainWrite(newValue) } else { keychainDelete() }
-        }
+        get { UserDefaults.standard.string(forKey: tokenKey) }
+        set { UserDefaults.standard.set(newValue, forKey: tokenKey) }
     }
 
     static var sessionId: String? {
@@ -24,46 +25,7 @@ enum TokenStore {
 
     /// Erase everything tying this device to an engagement.
     static func clear() {
-        token = nil
-        sessionId = nil
-    }
-
-    // MARK: - Keychain primitives
-
-    private static func keychainWrite(_ value: String) {
-        let data = Data(value.utf8)
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        SecItemDelete(query as CFDictionary)
-        var add = query
-        add[kSecValueData as String] = data
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        SecItemAdd(add as CFDictionary, nil)
-    }
-
-    private static func keychainRead() -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var item: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
-              let data = item as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
-
-    private static func keychainDelete() {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        SecItemDelete(query as CFDictionary)
+        UserDefaults.standard.removeObject(forKey: tokenKey)
+        UserDefaults.standard.removeObject(forKey: sessionKey)
     }
 }
