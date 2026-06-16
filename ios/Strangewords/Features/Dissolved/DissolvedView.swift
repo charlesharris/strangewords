@@ -3,6 +3,7 @@ import SwiftUI
 /// The gentle conclusion. Invites return, never apologizes (brief.v4.md §8).
 struct DissolvedView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.palette) private var palette
     let reason: AppModel.Reason
 
     var body: some View {
@@ -10,18 +11,18 @@ struct DissolvedView: View {
             Spacer()
             Text(message)
                 .font(Theme.poem(22))
-                .foregroundStyle(Theme.ink)
+                .foregroundStyle(palette.ink)
                 .multilineTextAlignment(.center)
             Spacer()
             Button(action: model.reset) {
                 Text("begin again")
                     .font(Theme.poem(20))
-                    .foregroundStyle(Theme.ink)
+                    .foregroundStyle(palette.ink)
                     .padding(.vertical, 12)
                     .padding(.horizontal, 36)
                     .overlay(
                         RoundedRectangle(cornerRadius: 26)
-                            .stroke(Theme.whisper.opacity(0.35), lineWidth: 1)
+                            .stroke(palette.secondary.opacity(0.35), lineWidth: 1)
                     )
             }
             Spacer().frame(height: 40)

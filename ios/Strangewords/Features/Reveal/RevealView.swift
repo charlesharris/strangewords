@@ -5,6 +5,7 @@ import SwiftUI
 /// (brief.v4.md §8). The dissolution animation deepens in Phase 4.
 struct RevealView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.palette) private var palette
     let session: SessionView
     @State private var appeared = false
 
@@ -24,7 +25,7 @@ struct RevealView: View {
             Spacer()
             Button("let it go") { model.dismissReveal() }
                 .font(Theme.poem(18))
-                .foregroundStyle(Theme.whisper)
+                .foregroundStyle(palette.secondary)
                 .accessibilityHint("Dismisses the poem. It will not be saved.")
             Spacer().frame(height: 36)
         }

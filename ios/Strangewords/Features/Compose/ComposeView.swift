@@ -4,6 +4,7 @@ import SwiftUI
 /// either writes (their turn) or waits in a held-breath state (brief.v4.md §5).
 struct ComposeView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.palette) private var palette
     let session: SessionView
     @FocusState private var focused: Bool
 
@@ -43,6 +44,7 @@ struct ComposeView: View {
         VStack(spacing: 16) {
             TextField("", text: $model.draft, axis: .vertical)
                 .font(Theme.poem())
+                .foregroundStyle(palette.ink)
                 .multilineTextAlignment(.center)
                 .focused($focused)
                 .submitLabel(.done)
@@ -53,19 +55,19 @@ struct ComposeView: View {
             if let err = model.submitError {
                 Text(err)
                     .font(Theme.label)
-                    .foregroundStyle(.red.opacity(0.8))
+                    .foregroundStyle(palette.accent)
                     .multilineTextAlignment(.center)
             }
 
             Button(action: model.submit) {
                 Text("offer this line")
                     .font(Theme.poem(20))
-                    .foregroundStyle(canSubmit(model) ? Theme.ink : Theme.whisper)
+                    .foregroundStyle(canSubmit(model) ? palette.ink : palette.secondary)
                     .padding(.vertical, 12)
                     .padding(.horizontal, 32)
                     .overlay(
                         RoundedRectangle(cornerRadius: 26)
-                            .stroke(Theme.whisper.opacity(0.35), lineWidth: 1)
+                            .stroke(palette.secondary.opacity(0.35), lineWidth: 1)
                     )
             }
             .disabled(!canSubmit(model))
@@ -78,11 +80,11 @@ struct ComposeView: View {
         return HStack(spacing: 6) {
             Text("\(count)")
                 .font(Theme.label)
-                .foregroundStyle(Theme.ink)
+                .foregroundStyle(palette.ink)
             if let target {
                 Text("/ \(target) syllables")
                     .font(Theme.label)
-                    .foregroundStyle(Theme.whisper)
+                    .foregroundStyle(palette.secondary)
             }
         }
         .accessibilityLabel(target.map { "\(count) of about \($0) syllables" } ?? "\(count) syllables")
@@ -98,10 +100,10 @@ struct ComposeView: View {
         VStack(spacing: 12) {
             Text("the stranger is with the poem now")
                 .font(Theme.chrome)
-                .foregroundStyle(Theme.whisper)
+                .foregroundStyle(palette.secondary)
             Text("it's fine to put this down — you'll be told when there's a line for you")
                 .font(Theme.label)
-                .foregroundStyle(Theme.whisper.opacity(0.8))
+                .foregroundStyle(palette.secondary.opacity(0.8))
                 .multilineTextAlignment(.center)
         }
         .accessibilityElement(children: .combine)

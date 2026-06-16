@@ -5,6 +5,7 @@ import SwiftUI
 /// for richer ambient motion to come in Phase 4.
 struct WaitingView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.palette) private var palette
     let connecting: Bool
     @State private var breathe = false
 
@@ -12,7 +13,7 @@ struct WaitingView: View {
         VStack(spacing: 36) {
             Spacer()
             Circle()
-                .fill(Theme.whisper.opacity(0.5))
+                .fill(palette.accent.opacity(0.6))
                 .frame(width: 12, height: 12)
                 .scaleEffect(breathe ? 1.6 : 0.8)
                 .opacity(breathe ? 0.3 : 0.7)
@@ -21,14 +22,14 @@ struct WaitingView: View {
 
             Text(connecting ? "stepping in…" : "no one else is here just yet")
                 .font(Theme.chrome)
-                .foregroundStyle(Theme.whisper)
+                .foregroundStyle(palette.secondary)
                 .multilineTextAlignment(.center)
             Spacer()
 
             if !connecting {
                 Button("step back out") { model.leave() }
                     .font(Theme.label)
-                    .foregroundStyle(Theme.whisper)
+                    .foregroundStyle(palette.secondary)
                 Spacer().frame(height: 24)
             }
         }
