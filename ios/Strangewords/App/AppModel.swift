@@ -38,6 +38,10 @@ final class AppModel {
     var draft: String = ""
     private(set) var submitError: String?
     private(set) var submitting = false
+    /// The name this poem coined on its way out — the one thing that survives the
+    /// dissolution (see `Naming/PoemNaming.swift`). Set only when a poem completes;
+    /// nil for every other ending. Read by `DissolvedView`.
+    private(set) var keepsake: CoinedName?
 
     private let api: any Backend
     private var pollTask: Task<Void, Never>?
@@ -64,6 +68,7 @@ final class AppModel {
     /// Cross the threshold: enter the pool and either match or begin waiting.
     func begin() {
         Haptics.soft()
+        keepsake = nil
         phase = .connecting
         Task {
             do {
@@ -137,8 +142,12 @@ final class AppModel {
         phase = .dissolving(s)
     }
 
-    /// The dissolution effect finished; let the poem go.
+    /// The dissolution effect finished; let the poem go. As it goes, coin the one
+    /// name it leaves behind (while the lines are still in hand).
     func finishDissolving() {
+        if case .dissolving(let s) = phase {
+            keepsake = PoemNaming.coin(from: s.lines)
+        }
         dissolve(.completedAndGone)
     }
 
@@ -154,6 +163,7 @@ final class AppModel {
         stopPolling()
         draft = ""
         submitError = nil
+        keepsake = nil
         phase = .threshold
     }
 

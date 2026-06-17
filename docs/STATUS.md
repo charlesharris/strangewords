@@ -87,6 +87,7 @@ ios/             SwiftUI app (iOS 17+), generated from project.yml via XcodeGen
                  vector scene), Dissolution (effects), RitualButton
     Resources/Fonts  Fraunces*, Inter, OFL licenses
     Syllables    on-device vowel-cluster hint
+    Naming       PoemNaming — coins a keepsake name from the finished poem
 
 run.sh                                  build + launch; DEFAULT = 1 sim, mock, dev chips on
 live_test.sh                            one command: backend + robot + app
@@ -115,6 +116,7 @@ These are choices made during the build that a future session should know:
 - **Haptics.** `App/Haptics.swift` centralizes a small tactile vocabulary; triggers live in `AppModel.apply` (reads the outgoing phase to detect real transitions) plus the begin/offer/let-go taps, so both real and mock backends fire them. Silent on the simulator — feel them on device.
 - **Dev affordances.** `App/Dev.swift` gates dev-only UI: `Dev.showControls` (`SW_LOCAL_MOCK=1` via `./run.sh --mock`, or `SW_DEV=1` — set on every `run.sh` launch) shows two top-trailing chips that cycle **time of day** and **theme**. `Dev.previewDissolution` (`SW_DEV_DISSOLVE=1`) boots into a looping dissolution of the active theme. Env forcers for screenshots/scripts: `SW_FORCE_TOD`, `SW_FORCE_THEME`. The retained vector scene (`Design/SceneBackground.swift`) is currently unused — a future theme could adopt it.
 - **`run.sh` defaults to ONE simulator in mock mode** (on-device stranger, no backend) with dev chips on — the everyday loop. `--solo` = one sim against a real backend (used by `live_test.sh` + robot poet); `--two` = two sims (be both strangers). It shuts down *every* other booted simulator so a stray (e.g. an iPhone 16 Plus) can't launch alongside.
+- **Keepsake naming (the "another layer").** When a poem *completes* and dissolves, it leaves behind one durable thing: a name it coined for some random small thing — a beer, a mustard, a racehorse, a perfume. `ios/.../Naming/PoemNaming.swift` is a pure, **on-device, deterministic** engine: it extracts the poem's content words (stopwords/short words dropped, deduped), seeds a SplitMix64 PRNG from an FNV-1a hash of the poem's own text (so the same poem always coins the same name, and `Hasher`'s per-launch randomization is avoided), then picks a random *category* + template and slots words in. The **kind of thing is a deliberate surprise**; nothing leaves the device (honors the nothing-kept/anonymity model). Wired in at `AppModel.finishDissolving()` (coins while the lines are still in hand → `model.keepsake`), surfaced by `Features/Dissolved/DissolvedView.swift` for the `.completedAndGone` ending only (every other ending keeps the plain farewell). Add a category by appending a coiner closure to `coiners`/`soloCoiners`. The poem is still let go — this is the one strange word that survives it.
 - **Tests live with the code:** `go test ./...` (uses miniredis, no services needed). Covers turn policy incl. N>2, validation, full poem, turn-order errors, idempotency, leave/teardown, the match race, and the zero-keys-after-dissolution anonymity invariant.
 
 ---
