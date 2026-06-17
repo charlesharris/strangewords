@@ -92,37 +92,80 @@ private struct Painter {
     // MARK: Celestial body — a pixel disc (sun by day, moon at night)
 
     private func celestial(_ ctx: inout GraphicsContext, cell: CGFloat, cols: Int, rows: Int) {
-        let (fx, fy, radCells): (Double, Double, Int)
+        let (fx, fy, rad): (Double, Double, Int)
         switch timeOfDay {
-        case .morning:   (fx, fy, radCells) = (0.24, 0.28, 6)
-        case .afternoon: (fx, fy, radCells) = (0.76, 0.16, 5)
-        case .night:     (fx, fy, radCells) = (0.74, 0.16, 4)
+        case .morning:   (fx, fy, rad) = (0.24, 0.28, 6)
+        case .afternoon: (fx, fy, rad) = (0.76, 0.16, 5)
+        case .night:     (fx, fy, rad) = (0.74, 0.16, 5)
         }
         let cx = Int(Double(cols) * fx)
         let cy = Int(Double(rows) * fy)
-        let body = palette.sun
+        if timeOfDay == .night {
+            moon(&ctx, cx: cx, cy: cy, rad: rad, cell: cell)
+        } else {
+            sun(&ctx, cx: cx, cy: cy, rad: rad, cell: cell)
+        }
+    }
 
-        // A faint halo ring one cell out.
-        for dy in -(radCells + 1)...(radCells + 1) {
-            for dx in -(radCells + 1)...(radCells + 1) {
+    private func sun(_ ctx: inout GraphicsContext, cx: Int, cy: Int, rad: Int, cell: CGFloat) {
+        let body = palette.sun
+        ring(&ctx, cx: cx, cy: cy, inner: rad, outer: rad + 1, cell: cell, color: body.opacity(0.28))
+        disc(&ctx, cx: cx, cy: cy, rad: rad, cell: cell, color: body)
+    }
+
+    /// A richer moon: a soft layered glow, gentle surface shading so it reads as
+    /// a sphere lit from the upper-left, and a scatter of craters.
+    private func moon(_ ctx: inout GraphicsContext, cx: Int, cy: Int, rad: Int, cell: CGFloat) {
+        let body = palette.sun
+        // Layered glow, fading outward.
+        ring(&ctx, cx: cx, cy: cy, inner: rad, outer: rad + 1, cell: cell, color: body.opacity(0.18))
+        ring(&ctx, cx: cx, cy: cy, inner: rad + 1, outer: rad + 2, cell: cell, color: body.opacity(0.10))
+        ring(&ctx, cx: cx, cy: cy, inner: rad + 2, outer: rad + 3, cell: cell, color: body.opacity(0.05))
+
+        // Disc with a shaded terminator on the lower-right (lit from upper-left).
+        let shade = body.mix(palette.skyTop, 0.30)
+        let edge = body.mix(palette.skyTop, 0.15)
+        let term = Int(Double(rad) * 0.7)
+        for dy in -rad...rad {
+            for dx in -rad...rad where dx * dx + dy * dy <= rad * rad {
                 let d = dx * dx + dy * dy
-                if d > radCells * radCells && d <= (radCells + 1) * (radCells + 1) {
-                    px(&ctx, cx + dx, cy + dy, cell: cell, color: body.opacity(timeOfDay == .night ? 0.18 : 0.28))
+                let color: Color
+                if dx + dy > term + 1 { color = shade }
+                else if dx + dy > term { color = edge }
+                else if d > (rad - 1) * (rad - 1) { color = edge } // soften the rim
+                else { color = body }
+                px(&ctx, cx + dx, cy + dy, cell: cell, color: color)
+            }
+        }
+
+        // Craters of varied size.
+        let crater = body.mix(palette.skyTop, 0.50)
+        let craters: [(Int, Int, Int)] = [(-2, -1, 1), (1, 1, 1), (2, -2, 0), (-1, 2, 0), (-3, 1, 0)]
+        for (ox, oy, r) in craters {
+            for dy in -r...r {
+                for dx in -r...r where dx * dx + dy * dy <= r * r {
+                    px(&ctx, cx + ox + dx, cy + oy + dy, cell: cell, color: crater)
                 }
             }
         }
-        // The disc.
-        for dy in -radCells...radCells {
-            for dx in -radCells...radCells where dx * dx + dy * dy <= radCells * radCells {
-                px(&ctx, cx + dx, cy + dy, cell: cell, color: body)
+    }
+
+    private func disc(_ ctx: inout GraphicsContext, cx: Int, cy: Int, rad: Int, cell: CGFloat, color: Color) {
+        for dy in -rad...rad {
+            for dx in -rad...rad where dx * dx + dy * dy <= rad * rad {
+                px(&ctx, cx + dx, cy + dy, cell: cell, color: color)
             }
         }
-        // The moon gets a couple of darker craters.
-        if timeOfDay == .night {
-            let crater = palette.sun.mix(palette.skyTop, 0.45)
-            px(&ctx, cx - 1, cy - 1, cell: cell, color: crater)
-            px(&ctx, cx + 2, cy + 1, cell: cell, color: crater)
-            px(&ctx, cx, cy + 2, cell: cell, color: crater)
+    }
+
+    private func ring(_ ctx: inout GraphicsContext, cx: Int, cy: Int, inner: Int, outer: Int, cell: CGFloat, color: Color) {
+        for dy in -outer...outer {
+            for dx in -outer...outer {
+                let d = dx * dx + dy * dy
+                if d > inner * inner && d <= outer * outer {
+                    px(&ctx, cx + dx, cy + dy, cell: cell, color: color)
+                }
+            }
         }
     }
 
