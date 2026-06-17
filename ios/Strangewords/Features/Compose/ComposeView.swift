@@ -60,16 +60,9 @@ struct ComposeView: View {
             }
 
             Button(action: model.submit) {
-                Text("offer this line")
-                    .font(Theme.poem(20))
-                    .foregroundStyle(canSubmit(model) ? palette.ink : palette.secondary)
-                    .padding(.vertical, 12)
-                    .padding(.horizontal, 32)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 26)
-                            .stroke(palette.secondary.opacity(0.35), lineWidth: 1)
-                    )
+                Text("offer this line").font(Theme.poem(20))
             }
+            .buttonStyle(.ritual)
             .disabled(!canSubmit(model))
         }
     }

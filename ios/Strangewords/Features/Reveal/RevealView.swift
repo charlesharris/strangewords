@@ -29,12 +29,13 @@ struct RevealView: View {
             Spacer()
 
             // The release control fades out as the poem begins to let go.
-            Button("let it go") {
+            Button {
                 Haptics.soft()
                 withAnimation(.easeInOut(duration: 0.5)) { releasing = true }
+            } label: {
+                Text("let it go").font(Theme.poem(18))
             }
-            .font(Theme.poem(18))
-            .foregroundStyle(palette.secondary)
+            .buttonStyle(.ritual)
             .opacity(releasing ? 0 : 1)
             .disabled(releasing)
             .accessibilityHint("Dismisses the poem. It will not be saved.")

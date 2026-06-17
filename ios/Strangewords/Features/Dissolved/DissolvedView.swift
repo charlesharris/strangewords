@@ -15,16 +15,9 @@ struct DissolvedView: View {
                 .multilineTextAlignment(.center)
             Spacer()
             Button(action: model.reset) {
-                Text("begin again")
-                    .font(Theme.poem(20))
-                    .foregroundStyle(palette.ink)
-                    .padding(.vertical, 12)
-                    .padding(.horizontal, 36)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 26)
-                            .stroke(palette.secondary.opacity(0.35), lineWidth: 1)
-                    )
+                Text("begin again").font(Theme.poem(20))
             }
+            .buttonStyle(.ritual)
             Spacer().frame(height: 40)
         }
         .accessibilityElement(children: .combine)

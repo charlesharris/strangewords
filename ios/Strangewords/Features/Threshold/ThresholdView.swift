@@ -21,16 +21,9 @@ struct ThresholdView: View {
             }
             Spacer()
             Button(action: model.begin) {
-                Text("begin")
-                    .font(Theme.poem(22))
-                    .foregroundStyle(palette.ink)
-                    .padding(.vertical, 14)
-                    .padding(.horizontal, 44)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 30)
-                            .stroke(palette.secondary.opacity(0.4), lineWidth: 1)
-                    )
+                Text("begin").font(Theme.poem(22))
             }
+            .buttonStyle(.ritual)
             .accessibilityHint("Steps into the waiting room to be matched with a stranger.")
             Spacer().frame(height: 40)
         }
