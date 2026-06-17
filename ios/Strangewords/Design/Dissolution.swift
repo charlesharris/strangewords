@@ -194,15 +194,16 @@ private struct PixelPetalDissolutionView: View {
     private let cell: CGFloat = 8
     private static let count = 24
 
-    /// Hand-drawn petal frames, centered on (0,0). Cycling them flips the petal
-    /// without ever rotating a sprite (which would blur). The sequence reads
-    /// edge-on → three-quarter → full → three-quarter, so a petal looks like
-    /// it's turning over as it falls. `true` marks the lighter heart cell.
+    /// Hand-drawn petal frames. Cycling them flips the petal without ever
+    /// rotating a sprite (which would blur). The sequence reads edge-on →
+    /// three-quarter → full → three-quarter, so a petal looks like it's turning
+    /// over as it falls. The shapes are rounded blobs (not plus/cross arms) so
+    /// they read as blossoms. `true` marks the lighter heart cell.
     private static let frames: [[(x: Int, y: Int, heart: Bool)]] = [
-        [(0, -1, false), (0, 0, true), (0, 1, false)],                                       // edge-on sliver
-        [(0, -1, false), (0, 0, true), (1, 0, false), (0, 1, false)],                        // three-quarter
-        [(0, -1, false), (-1, 0, false), (0, 0, true), (1, 0, false), (0, 1, false)],        // full
-        [(0, -1, false), (-1, 0, false), (0, 0, true), (0, 1, false)],                       // three-quarter (other side)
+        [(0, 0, true), (0, 1, false)],                                  // edge-on: a short pair
+        [(0, 0, true), (1, 0, false), (0, 1, false)],                   // three-quarter: a rounded corner
+        [(0, 0, true), (1, 0, false), (0, 1, false), (1, 1, false)],    // full: a rounded 2×2 blob
+        [(1, 0, false), (0, 1, true), (1, 1, false)],                   // three-quarter (other side)
     ]
 
     var body: some View {
@@ -259,6 +260,10 @@ private struct PixelPetalDissolutionView: View {
             if local <= 0 { continue }
             let p = min(1.0, local / max(duration - delay, 0.001))
 
+            // Per-petal pixel size — same sprite, different scale, so the petals
+            // vary from small to large (a sense of depth).
+            let pcell = cell * (0.6 + hash(i, 11) * 0.9)   // ~5–12 pt
+
             let startX = hash(i, 1) * Double(size.width)
             let startY = (0.16 + hash(i, 2) * 0.40) * Double(size.height)
             let fall = p * Double(size.height) * 1.15
@@ -271,9 +276,9 @@ private struct PixelPetalDissolutionView: View {
             let sway = sin(local * freq + phase) * amp
                      + sin(local * freq * 0.5 + phase) * (amp * 0.4)
 
-            // Quantize to whole pixels so the motion reads as pixel art.
-            let qx = ((startX + sway) / Double(cell)).rounded() * Double(cell)
-            let qy = ((startY + fall) / Double(cell)).rounded() * Double(cell)
+            // Quantize to this petal's pixel grid so the motion reads as pixel art.
+            let qx = ((startX + sway) / Double(pcell)).rounded() * Double(pcell)
+            let qy = ((startY + fall) / Double(pcell)).rounded() * Double(pcell)
 
             // Hold, then fade over the last 40% of the petal's life.
             let fade = p < 0.6 ? 1.0 : max(0, 1 - (p - 0.6) / 0.4)
@@ -293,9 +298,9 @@ private struct PixelPetalDissolutionView: View {
 
             for cellSpec in frame {
                 let color = (cellSpec.heart ? heart : body).opacity(opacity)
-                let rect = CGRect(x: CGFloat(qx) + CGFloat(cellSpec.x) * cell,
-                                  y: CGFloat(qy) + CGFloat(cellSpec.y) * cell,
-                                  width: cell, height: cell)
+                let rect = CGRect(x: CGFloat(qx) + CGFloat(cellSpec.x) * pcell,
+                                  y: CGFloat(qy) + CGFloat(cellSpec.y) * pcell,
+                                  width: pcell, height: pcell)
                 c.fill(Path(rect), with: .color(color))
             }
         }
