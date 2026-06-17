@@ -5,6 +5,8 @@ import SwiftUI
 struct ThresholdView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.palette) private var palette
+    /// A fresh opening line each time the threshold appears.
+    @State private var tagline = SplashLines.random()
 
     var body: some View {
         VStack(spacing: 40) {
@@ -14,7 +16,7 @@ struct ThresholdView: View {
                     .font(Theme.display(34))
                     .foregroundStyle(palette.ink)
                     .multilineTextAlignment(.center)
-                Text("A poem with a stranger.\nThen let it go.")
+                Text(tagline)
                     .font(Theme.chrome)
                     .foregroundStyle(palette.secondary)
                     .multilineTextAlignment(.center)
