@@ -1,0 +1,8 @@
+# Keep the build context small and reproducible.
+.git
+.gitignore
+*.md
+Makefile
+docker-compose.yml
+fly.toml
+.dockerignore

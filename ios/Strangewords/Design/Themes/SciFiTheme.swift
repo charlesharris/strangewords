@@ -107,7 +107,11 @@ private struct SciFiScene: View {
     private func skyline(_ ctx: inout GraphicsContext, cell: CGFloat, cols: Int, rows: Int, horizon: Int, color: Color, maxRise: Double, gapMax: Int, seed: Int, lit: Color, frame: Int) {
         var col = 0
         while col < cols {
-            let w = 2 + Int(Pixel.hash(seed + col, 1) * 5)                  // 2–6 wide
+            // Width: mostly 3–6, with the odd narrow spire or wide block.
+            let wr = Pixel.hash(seed + col, 1)
+            let w = wr < 0.15 ? 2
+                  : (wr > 0.85 ? 7 + Int(Pixel.hash(seed + col, 8) * 3)
+                               : 3 + Int(Pixel.hash(seed + col, 7) * 4))
             let tall = Pixel.hash(seed + col, 2)                           // 0..1 height factor
             // Strong bias toward shorter buildings, with a few skyscrapers.
             let h = (0.03 + pow(tall, 2.2) * maxRise) * Double(rows)
@@ -115,16 +119,32 @@ private struct SciFiScene: View {
 
             block(&ctx, col: col, w: w, top: baseTop, bottom: rows, cell: cell, color, cols: cols)
 
-            // A setback upper tier on taller, wider buildings.
+            // A roof shape: most are flat; a few are peaked, slanted, domed, or stepped.
             var crownTop = baseTop
-            if tall > 0.55 && w >= 4 {
-                let upTop = max(1, baseTop - Int(Double(rows) * 0.06 * tall))
-                block(&ctx, col: col + 1, w: w - 2, top: upTop, bottom: baseTop, cell: cell, color, cols: cols)
-                crownTop = upTop
+            var flatTop = true
+            let roof = Pixel.hash(seed + col, 3)
+            // Bias the distinctive tops onto taller buildings, where they rise
+            // clear of their neighbors and read against the sky.
+            if w >= 3 && tall > 0.4 && roof >= 0.5 && roof < 0.9 {
+                flatTop = false
+                if roof < 0.67 {
+                    peakedRoof(&ctx, col: col, w: w, baseTop: baseTop, cell: cell, color, cols: cols)
+                } else if roof < 0.8 {
+                    slantRoof(&ctx, col: col, w: w, baseTop: baseTop, rightUp: Pixel.hash(seed + col, 4) > 0.5, cell: cell, color, cols: cols)
+                } else {
+                    domeRoof(&ctx, col: col, w: w, baseTop: baseTop, cell: cell, color, cols: cols)
+                }
+            } else if w >= 4 && roof >= 0.9 {
+                // Stepped ziggurat: two narrowing tiers.
+                let t1 = max(1, baseTop - Int(Double(rows) * 0.05))
+                block(&ctx, col: col + 1, w: w - 2, top: t1, bottom: baseTop, cell: cell, color, cols: cols)
+                let t2 = max(1, t1 - Int(Double(rows) * 0.04))
+                block(&ctx, col: col + 2, w: max(1, w - 4), top: t2, bottom: t1, cell: cell, color, cols: cols)
+                crownTop = t2
             }
 
-            // A thin antenna with a blinking beacon on the tallest towers.
-            if tall > 0.78 {
+            // A thin antenna with a blinking beacon on tall flat/stepped towers.
+            if flatTop && tall > 0.7 {
                 let ax = col + w / 2
                 for r in max(1, crownTop - 3)..<crownTop { Pixel.fill(&ctx, ax, r, cell, color) }
                 let blink = (frame / 3 + col) % 4 == 0
@@ -156,6 +176,44 @@ private struct SciFiScene: View {
     private func block(_ ctx: inout GraphicsContext, col: Int, w: Int, top: Int, bottom: Int, cell: CGFloat, _ color: Color, cols: Int) {
         for c in col..<min(col + w, cols) where c >= 0 {
             for r in max(0, top)..<max(0, bottom) { Pixel.fill(&ctx, c, r, cell, color) }
+        }
+    }
+
+    /// A triangular peak rising above the body.
+    private func peakedRoof(_ ctx: inout GraphicsContext, col: Int, w: Int, baseTop: Int, cell: CGFloat, _ color: Color, cols: Int) {
+        let ph = max(3, min(w, 7))
+        for k in 0..<ph {
+            let r = baseTop - 1 - k
+            if r < 0 { break }
+            let inset = Int((Double(k) / Double(ph)) * (Double(w) / 2))
+            for c in (col + inset)..<min(col + w - inset, cols) where c >= 0 { Pixel.fill(&ctx, c, r, cell, color) }
+        }
+    }
+
+    /// A slanted top edge, rising toward one side.
+    private func slantRoof(_ ctx: inout GraphicsContext, col: Int, w: Int, baseTop: Int, rightUp: Bool, cell: CGFloat, _ color: Color, cols: Int) {
+        let sh = max(2, min(w, 5))
+        for c in col..<min(col + w, cols) where c >= 0 {
+            let frac = rightUp ? Double(c - col) / Double(max(w - 1, 1))
+                               : Double((col + w - 1) - c) / Double(max(w - 1, 1))
+            let extra = Int((frac * Double(sh)).rounded())
+            var r = baseTop - 1, k = 0
+            while k < extra && r >= 0 { Pixel.fill(&ctx, c, r, cell, color); r -= 1; k += 1 }
+        }
+    }
+
+    /// A rounded dome above the body.
+    private func domeRoof(_ ctx: inout GraphicsContext, col: Int, w: Int, baseTop: Int, cell: CGFloat, _ color: Color, cols: Int) {
+        let rad = max(2, (w + 1) / 2)
+        let cx = col + w / 2
+        for dy in 1...rad {
+            let r = baseTop - dy
+            if r < 0 { break }
+            let span = Int((Double(rad * rad - dy * dy)).squareRoot())
+            for dx in -span...span {
+                let c = cx + dx
+                if c >= 0 && c < cols { Pixel.fill(&ctx, c, r, cell, color) }
+            }
         }
     }
 }

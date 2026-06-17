@@ -1,0 +1,30 @@
+# Fly.io config for the Strangewords backend.
+# Region: change primary_region to match where you create the Redis db.
+app = "strangewords"
+primary_region = "sjc"
+
+[build]
+
+[env]
+  SW_ADDR = ":8080"
+  # SW_REDIS_ADDR / SW_REDIS_PASSWORD are set via `fly secrets set` (see runbook).
+  # SW_REDIS_TLS = "1"   # only if the Redis endpoint requires TLS (rediss://).
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # The iOS app polls; keep one machine warm so there are no cold starts mid-poem.
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "5s"
+    method = "GET"
+    path = "/healthz"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
