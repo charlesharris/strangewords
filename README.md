@@ -49,18 +49,20 @@ Requires Xcode 16+ and [XcodeGen](https://github.com/yonom/XcodeGen) (`brew inst
 Easiest — build and launch on simulators with one command:
 
 ```sh
-./run.sh                  # two simulators — be both strangers yourself
-./run.sh --solo           # one simulator — pair it with the robot poet
-./run.sh --mock           # one simulator — no backend; an on-device stranger
-                          #   auto-replies (fastest loop for design/feel work)
-./run.sh --solo --night   # force a theme: --morning | --afternoon | --night
+./run.sh                  # ONE simulator, mock mode — the everyday dev loop:
+                          #   on-device stranger auto-replies, dev toggle on
+./run.sh --solo           # one simulator against a real backend (+ robot poet)
+./run.sh --two            # two simulators — be both strangers yourself (backend)
+./run.sh --night          # force a theme: --morning | --afternoon | --night
 ```
 
 Re-run `./run.sh` anytime to rebuild and relaunch with your latest changes.
 
-**Mock mode** (`--mock`, or `SW_LOCAL_MOCK=1`) needs no backend, Redis, or robot:
-it matches you instantly with a simulated stranger who writes its lines after a
-short pause, then completes and dissolves — the whole arc on one simulator.
+**Mock mode** (the default, or `--mock` / `SW_LOCAL_MOCK=1`) needs no backend,
+Redis, or robot: it matches you instantly with a simulated stranger who writes
+its lines after a short pause, then completes and dissolves — the whole arc on
+one simulator. Dev controls (a chip that cycles the time-of-day backdrop) are on
+in every `./run.sh` launch.
 
 Or open it in Xcode directly:
 
@@ -72,11 +74,13 @@ xcodegen generate && open Strangewords.xcodeproj
 The app talks to `http://127.0.0.1:8080` (the simulator shares the host
 network). Start the backend first.
 
-### Two ways to test both sides
+### Ways to test both sides
 
-- **You + robot:** terminal 1 `./run_test_server_and_robot_poet_friend.sh`,
+- **Just you (default):** `./run.sh` — one simulator, an on-device stranger
+  auto-replies. No backend needed.
+- **You + robot poet:** terminal 1 `./run_test_server_and_robot_poet_friend.sh`,
   terminal 2 `./run.sh --solo`, then tap **begin** in the simulator.
-- **You + you:** start a backend (`cd server && make run`), then `./run.sh`
+- **You + you:** start a backend (`cd server && make run`), then `./run.sh --two`
   and tap **begin** on both simulators.
 
 ## Manual two-participant runbook (Phase 3 acceptance)

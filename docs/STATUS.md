@@ -16,8 +16,9 @@ The **core experience works end to end**: a person enters, gets matched, takes t
 
 ### What you can do today
 ```sh
-./run.sh --mock           # app only, no backend — an on-device stranger
-                          # auto-replies; fastest loop for design/feel work
+./run.sh                  # app only, ONE sim, no backend — an on-device
+                          # stranger auto-replies + dev time-of-day toggle on
+                          # (the everyday dev/feel loop)
 ./live_test.sh            # Redis + backend + robot poet + app on one simulator
                           # tap "begin" in the sim → matched with the robot
 ./live_test.sh --night    # force a theme: --morning | --afternoon | --night
