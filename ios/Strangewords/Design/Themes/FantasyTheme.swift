@@ -163,6 +163,7 @@ private struct FantasyDissolutionView: View {
                 }
             }
             .frame(maxWidth: .infinity)
+            .padding(.horizontal, 28)
 
             if !ctx.reduceMotion {
                 TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { tl in

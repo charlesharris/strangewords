@@ -64,6 +64,7 @@ private struct PetalDissolutionView: View {
                 }
             }
             .frame(maxWidth: .infinity)
+            .padding(.horizontal, 28)
 
             // The petals — the motion layer, skipped under Reduce Motion.
             if !ctx.reduceMotion {
@@ -216,6 +217,7 @@ private struct PixelPetalDissolutionView: View {
                 }
             }
             .frame(maxWidth: .infinity)
+            .padding(.horizontal, 28)
 
             // The falling pixel petals — the motion layer.
             if !ctx.reduceMotion {
@@ -336,6 +338,7 @@ private struct FadeDissolutionView: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .padding(.horizontal, 28)
         .opacity(gone ? 0 : 1)
         .scaleEffect(gone && !ctx.reduceMotion ? 1.04 : 1)
         .onAppear { withAnimation(.easeInOut(duration: duration * 0.9)) { gone = true } }

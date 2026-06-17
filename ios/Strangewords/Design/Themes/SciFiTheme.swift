@@ -71,8 +71,8 @@ private struct SciFiScene: View {
         }
         planet(&ctx, cell: cell, cols: cols, rows: rows)
         // Far skyline behind, near skyline in front.
-        skyline(&ctx, cell: cell, cols: cols, rows: rows, horizon: horizon, color: palette.far, rise: 0.14, gap: 1, seed: 11, lit: palette.accent.opacity(0.5))
-        skyline(&ctx, cell: cell, cols: cols, rows: rows, horizon: horizon + Int(Double(rows) * 0.05), color: palette.near, rise: 0.22, gap: 2, seed: 27, lit: palette.accent)
+        skyline(&ctx, cell: cell, cols: cols, rows: rows, horizon: horizon, color: palette.far, maxRise: 0.16, gapMax: 2, seed: 11, lit: palette.accent.opacity(0.5), frame: frame)
+        skyline(&ctx, cell: cell, cols: cols, rows: rows, horizon: horizon + Int(Double(rows) * 0.06), color: palette.near, maxRise: 0.26, gapMax: 3, seed: 27, lit: palette.accent, frame: frame)
     }
 
     private func planet(_ ctx: inout GraphicsContext, cell: CGFloat, cols: Int, rows: Int) {
@@ -101,30 +101,61 @@ private struct SciFiScene: View {
         for (x, y) in front { Pixel.fill(&ctx, x, y, cell, ringColor) }
     }
 
-    /// A row of stepped buildings filled down to the bottom, with lit windows.
-    private func skyline(_ ctx: inout GraphicsContext, cell: CGFloat, cols: Int, rows: Int, horizon: Int, color: Color, rise: Double, gap: Int, seed: Int, lit: Color) {
+    /// A varied skyline: buildings of differing widths and (biased) heights, with
+    /// setback upper tiers on the tall ones, blinking antennas, and a per-building
+    /// window density so some towers are bright and others nearly dark.
+    private func skyline(_ ctx: inout GraphicsContext, cell: CGFloat, cols: Int, rows: Int, horizon: Int, color: Color, maxRise: Double, gapMax: Int, seed: Int, lit: Color, frame: Int) {
         var col = 0
         while col < cols {
-            let w = 3 + Int(Pixel.hash(seed + col, 1) * 4)            // 3–6 wide
-            let top = horizon - Int(Pixel.hash(seed + col, 2) * Double(rows) * rise)
-            for c in col..<min(col + w, cols) {
-                for r in max(0, top)..<rows { Pixel.fill(&ctx, c, r, cell, color) }
+            let w = 2 + Int(Pixel.hash(seed + col, 1) * 5)                  // 2–6 wide
+            let tall = Pixel.hash(seed + col, 2)                           // 0..1 height factor
+            // Strong bias toward shorter buildings, with a few skyscrapers.
+            let h = (0.03 + pow(tall, 2.2) * maxRise) * Double(rows)
+            let baseTop = max(1, horizon - Int(h))
+
+            block(&ctx, col: col, w: w, top: baseTop, bottom: rows, cell: cell, color, cols: cols)
+
+            // A setback upper tier on taller, wider buildings.
+            var crownTop = baseTop
+            if tall > 0.55 && w >= 4 {
+                let upTop = max(1, baseTop - Int(Double(rows) * 0.06 * tall))
+                block(&ctx, col: col + 1, w: w - 2, top: upTop, bottom: baseTop, cell: cell, color, cols: cols)
+                crownTop = upTop
             }
-            // Windows (night only) — a sparse lit grid.
+
+            // A thin antenna with a blinking beacon on the tallest towers.
+            if tall > 0.78 {
+                let ax = col + w / 2
+                for r in max(1, crownTop - 3)..<crownTop { Pixel.fill(&ctx, ax, r, cell, color) }
+                let blink = (frame / 3 + col) % 4 == 0
+                Pixel.fill(&ctx, ax, max(0, crownTop - 4), cell, blink ? lit : color)
+            }
+
+            // Windows (night only), with per-building brightness.
             if palette.isDark {
-                var wy = top + 2
-                while wy < rows - 1 {
-                    var wx = col + 1
-                    while wx < col + w - 1 {
-                        if Pixel.hash(seed + wx * 7 + wy * 13, 3) > 0.45 {
-                            Pixel.fill(&ctx, wx, wy, cell, lit)
+                let density = Pixel.hash(seed + col, 5)
+                if density > 0.25 {
+                    var wy = baseTop + 2
+                    while wy < rows - 1 {
+                        var wx = col + 1
+                        while wx < col + w - 1 {
+                            if Pixel.hash(seed + wx * 7 + wy * 13, 9) < density {
+                                Pixel.fill(&ctx, wx, wy, cell, lit)
+                            }
+                            wx += 2
                         }
-                        wx += 2
+                        wy += 2
                     }
-                    wy += 2
                 }
             }
-            col += w + gap
+
+            col += w + Int(Pixel.hash(seed + col, 6) * Double(gapMax + 1))
+        }
+    }
+
+    private func block(_ ctx: inout GraphicsContext, col: Int, w: Int, top: Int, bottom: Int, cell: CGFloat, _ color: Color, cols: Int) {
+        for c in col..<min(col + w, cols) where c >= 0 {
+            for r in max(0, top)..<max(0, bottom) { Pixel.fill(&ctx, c, r, cell, color) }
         }
     }
 }
@@ -160,6 +191,7 @@ private struct SciFiDissolutionView: View {
                 }
             }
             .frame(maxWidth: .infinity)
+            .padding(.horizontal, 28)
 
             if !ctx.reduceMotion {
                 TimelineView(.animation(minimumInterval: 1.0 / 14.0)) { tl in

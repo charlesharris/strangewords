@@ -13,6 +13,7 @@ final class AppModel {
         case waiting
         case composing(SessionView)
         case reveal(SessionView)
+        case dissolving(SessionView)   // the dissolution effect is playing, full-screen
         case dissolved(Reason)
     }
 
@@ -126,9 +127,18 @@ final class AppModel {
         }
     }
 
-    func dismissReveal() {
-        guard case .reveal(let s) = phase, let token = TokenStore.token else { return }
-        Task { await api.dismiss(id: s.sessionId, token: token) }
+    /// Tap "let it go": tell the server we're done and start the (full-screen)
+    /// dissolution effect. The effect calls `finishDissolving()` when it ends.
+    func release() {
+        guard case .reveal(let s) = phase else { return }
+        if let token = TokenStore.token {
+            Task { await api.dismiss(id: s.sessionId, token: token) }
+        }
+        phase = .dissolving(s)
+    }
+
+    /// The dissolution effect finished; let the poem go.
+    func finishDissolving() {
         dissolve(.completedAndGone)
     }
 

@@ -8,6 +8,7 @@ import SwiftUI
 struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var tod = TimeOfDay.now()
     /// Set once the dev toggle pins a time of day, so returning to foreground
     /// doesn't snap the preview back to the real local hour.
@@ -23,12 +24,20 @@ struct RootView: View {
             theme.background(tod, palette)
             if Dev.previewDissolution {
                 SceneDepthOverlay(palette: palette).opacity(0.7)
-                DissolutionPreviewView().padding(.horizontal, 28)
+                DissolutionPreviewView()
             } else {
                 SceneDepthOverlay(palette: palette)
                     .opacity(sceneDepth)
                 content
                     .padding(.horizontal, 28)
+                // The dissolution plays full-screen (outside the padded content)
+                // so it covers the whole scene — buildings and all.
+                if case .dissolving(let s) = model.phase {
+                    theme.dissolution.makeBody(
+                        DissolutionContext(lines: s.lines, palette: palette, timeOfDay: tod, reduceMotion: reduceMotion)
+                    ) { model.finishDissolving() }
+                    .transition(.opacity)
+                }
             }
         }
         .overlay(alignment: .topTrailing) { devControls(palette) }
@@ -94,6 +103,7 @@ struct RootView: View {
         case .threshold, .connecting, .waiting: return 0
         case .composing:                        return 0.22
         case .reveal:                           return 0.70
+        case .dissolving:                       return 0.85
         case .dissolved:                        return 1.0
         }
     }
@@ -111,6 +121,8 @@ struct RootView: View {
             ComposeView(session: s).transition(.opacity)
         case .reveal(let s):
             RevealView(session: s).transition(.opacity)
+        case .dissolving:
+            Color.clear   // the dissolution renders full-screen above `content`
         case .dissolved(let reason):
             DissolvedView(reason: reason).transition(.opacity)
         }
