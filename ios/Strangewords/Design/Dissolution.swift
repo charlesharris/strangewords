@@ -24,14 +24,9 @@ protocol DissolutionEffect {
     func makeBody(_ ctx: DissolutionContext, onComplete: @escaping () -> Void) -> AnyView
 }
 
-/// The active effect. Swap this one line to change how every poem dissolves.
-/// (Reduce Motion is honored inside each effect, so this stays a single choice.)
-///
-/// Options today: `PixelPetalDissolution` (matches the pixel-art scene),
-/// `PetalDissolution` (soft vector petals), `FadeDissolution` (minimal).
-enum Dissolutions {
-    static let current: any DissolutionEffect = PixelPetalDissolution()
-}
+// The active dissolution is chosen by the current `SceneTheme` (see
+// `SceneTheme.dissolution`); each theme bundles its own. The effects below are
+// the conformers a theme can pick from.
 
 // MARK: - Petal dissolution
 

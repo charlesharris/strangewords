@@ -1,16 +1,10 @@
 import SwiftUI
 
-/// The two ways the day/night scene can be drawn. Swap `RootView.sceneStyle`
-/// to change the whole app's backdrop; both stay available as the look evolves.
-enum SceneStyle {
-    case pixel      // procedural pixel-art scene (PixelScene)
-    case painterly  // the soft vector scene (SceneBackground)
-}
-
-/// RootView switches on the model's phase over the day/night scene. Transitions
-/// are deliberately paced (a gentle fade) to honor the arc anticipation →
-/// intimacy → revelation → loss (brief.v4.md §8). The palette is chosen from
-/// the local time and provided to every view through the environment.
+/// RootView switches on the model's phase over the active theme's scene.
+/// Transitions are deliberately paced (a gentle fade) to honor the arc
+/// anticipation → intimacy → revelation → loss (brief.v4.md §8). The theme
+/// supplies the palette (chosen from the local time), the background, and the
+/// dissolution; all are provided to the rest of the app through the environment.
 struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
@@ -18,14 +12,15 @@ struct RootView: View {
     /// Set once the dev toggle pins a time of day, so returning to foreground
     /// doesn't snap the preview back to the real local hour.
     @State private var todPinned = false
-
-    /// The active backdrop. [TUNABLE] — pixel art is the current look.
-    private let sceneStyle: SceneStyle = .pixel
+    /// The active theme — defaults to `SW_FORCE_THEME` (if set) or the registry
+    /// default; the dev toggle cycles it.
+    @State private var theme: any SceneTheme =
+        Themes.with(id: ProcessInfo.processInfo.environment["SW_FORCE_THEME"])
 
     var body: some View {
-        let palette = tod.palette
+        let palette = theme.palette(tod)
         ZStack {
-            background(palette)
+            theme.background(tod, palette)
             if Dev.previewDissolution {
                 SceneDepthOverlay(palette: palette).opacity(0.7)
                 DissolutionPreviewView().padding(.horizontal, 28)
@@ -36,9 +31,10 @@ struct RootView: View {
                     .padding(.horizontal, 28)
             }
         }
-        .overlay(alignment: .topTrailing) { devTimeOfDayToggle(palette) }
+        .overlay(alignment: .topTrailing) { devControls(palette) }
         .environment(\.palette, palette)
         .environment(\.timeOfDay, tod)
+        .environment(\.sceneTheme, theme)
         .preferredColorScheme(palette.isDark ? .dark : .light)
         .animation(.easeInOut(duration: 0.6), value: model.phase)
         .animation(.easeInOut(duration: 0.6), value: tod)
@@ -47,30 +43,39 @@ struct RootView: View {
         }
     }
 
-    /// A small dev-only chip that cycles the time-of-day backdrop, so the three
-    /// scenes can be previewed without waiting for the clock. Hidden in normal
-    /// builds (see `Dev.showControls`).
+    /// Dev-only chips (top-trailing): cycle the time of day and the theme, so the
+    /// scenes can be previewed without waiting for the clock or rebuilding.
+    /// Hidden in normal builds (see `Dev.showControls`).
     @ViewBuilder
-    private func devTimeOfDayToggle(_ palette: Palette) -> some View {
+    private func devControls(_ palette: Palette) -> some View {
         if Dev.showControls {
-            Button {
-                todPinned = true
-                tod = tod.next
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: todIcon)
-                    Text(tod.rawValue)
+            VStack(alignment: .trailing, spacing: 6) {
+                devChip(icon: todIcon, label: tod.rawValue, palette: palette) {
+                    todPinned = true
+                    tod = tod.next
                 }
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(.ultraThinMaterial, in: Capsule())
-                .foregroundStyle(palette.ink.opacity(0.75))
+                devChip(icon: "paintpalette.fill", label: theme.name, palette: palette) {
+                    theme = Themes.after(theme)
+                }
             }
             .padding(.top, 6)
             .padding(.trailing, 14)
-            .accessibilityLabel("Developer: cycle time of day, currently \(tod.rawValue)")
         }
+    }
+
+    private func devChip(icon: String, label: String, palette: Palette, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                Text(label)
+            }
+            .font(.system(size: 12, weight: .medium, design: .monospaced))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial, in: Capsule())
+            .foregroundStyle(palette.ink.opacity(0.75))
+        }
+        .accessibilityLabel("Developer: \(label)")
     }
 
     private var todIcon: String {
@@ -90,14 +95,6 @@ struct RootView: View {
         case .composing:                        return 0.22
         case .reveal:                           return 0.70
         case .dissolved:                        return 1.0
-        }
-    }
-
-    @ViewBuilder
-    private func background(_ palette: Palette) -> some View {
-        switch sceneStyle {
-        case .pixel:     PixelScene(palette: palette, timeOfDay: tod)
-        case .painterly: SceneBackground(palette: palette, timeOfDay: tod)
         }
     }
 
@@ -126,12 +123,13 @@ struct RootView: View {
 struct DissolutionPreviewView: View {
     @Environment(\.palette) private var palette
     @Environment(\.timeOfDay) private var timeOfDay
+    @Environment(\.sceneTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var runID = 0
     private let lines = ["an old silent pond", "a frog slips into the dark", "the moon lets go"]
 
     var body: some View {
-        Dissolutions.current.makeBody(
+        theme.dissolution.makeBody(
             DissolutionContext(lines: lines, palette: palette, timeOfDay: timeOfDay, reduceMotion: reduceMotion)
         ) {
             runID += 1   // re-create the effect so it plays again, on a loop

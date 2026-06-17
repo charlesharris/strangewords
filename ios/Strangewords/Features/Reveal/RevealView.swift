@@ -9,6 +9,7 @@ struct RevealView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.palette) private var palette
     @Environment(\.timeOfDay) private var timeOfDay
+    @Environment(\.sceneTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let session: SessionView
     @State private var appeared = false
@@ -19,7 +20,7 @@ struct RevealView: View {
             Spacer()
 
             if releasing {
-                Dissolutions.current.makeBody(dissolutionContext) {
+                theme.dissolution.makeBody(dissolutionContext) {
                     model.dismissReveal()
                 }
             } else {
