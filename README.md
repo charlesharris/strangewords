@@ -8,6 +8,14 @@ never meet, then letting it go. (Repo, Go module, and Xcode target are named
 - **Intent / philosophy:** [`brief.v4.md`](brief.v4.md)
 - **Build plan:** [`plan.v1.md`](plan.v1.md)
 
+## Screens
+
+The procedural pixel-art scene shifts with your local time of day.
+
+| Morning | Afternoon | Night |
+|:---:|:---:|:---:|
+| ![Morning](docs/screen-morning.png) | ![Afternoon](docs/screen-afternoon.png) | ![Night](docs/screen-night.png) |
+
 ## Layout
 
 - `server/` — Go coordination backend (HTTPS + Redis; APNs later)
