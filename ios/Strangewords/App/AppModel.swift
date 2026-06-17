@@ -49,6 +49,10 @@ final class AppModel {
             self.api = backend
         } else if ProcessInfo.processInfo.environment["SW_LOCAL_MOCK"] == "1" {
             self.api = LocalBackend()
+            // Mock sessions are ephemeral (a fresh LocalBackend each launch), so
+            // a token persisted from a previous run is meaningless — clear it so
+            // we always start at the threshold rather than resuming a ghost.
+            TokenStore.clear()
         } else {
             self.api = APIClient.shared
         }
