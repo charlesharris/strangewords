@@ -26,6 +26,8 @@ struct RootView: View {
         let palette = tod.palette
         ZStack {
             background(palette)
+            SceneDepthOverlay(palette: palette)
+                .opacity(sceneDepth)
             content
                 .padding(.horizontal, 28)
         }
@@ -74,6 +76,18 @@ struct RootView: View {
         }
     }
 
+    /// How far the scene has "deepened toward dusk" for the current phase — the
+    /// world dims and closes in as the arc moves anticipation → intimacy →
+    /// revelation → loss (brief.v4.md §8). Animated via the phase transition.
+    private var sceneDepth: Double {
+        switch model.phase {
+        case .threshold, .connecting, .waiting: return 0
+        case .composing:                        return 0.22
+        case .reveal:                           return 0.70
+        case .dissolved:                        return 1.0
+        }
+    }
+
     @ViewBuilder
     private func background(_ palette: Palette) -> some View {
         switch sceneStyle {
@@ -98,5 +112,34 @@ struct RootView: View {
         case .dissolved(let reason):
             DissolvedView(reason: reason).transition(.opacity)
         }
+    }
+}
+
+/// A dusk that closes in from the edges as the experience deepens. Drawn at full
+/// strength here and modulated by `.opacity(sceneDepth)` upstream, so the
+/// transition animates smoothly. It darkens the frame and the ground while
+/// leaving the center clear, so the centered poem stays legible even at full
+/// depth. The dusk tone follows the time of day (warm plum by day, deep indigo
+/// at night).
+struct SceneDepthOverlay: View {
+    let palette: Palette
+
+    var body: some View {
+        GeometryReader { geo in
+            let dusk = palette.isDark ? Color(0x070914) : Color(0x4E2433)
+            let maxR = max(geo.size.width, geo.size.height)
+            ZStack {
+                // Dusk gathering at the edges (clear core, dark corners).
+                RadialGradient(colors: [.clear, .clear, dusk],
+                               center: .center,
+                               startRadius: maxR * 0.18,
+                               endRadius: maxR * 0.72)
+                // The ground falls into deeper shadow.
+                LinearGradient(colors: [.clear, dusk.opacity(0.5)],
+                               startPoint: .center, endPoint: .bottom)
+            }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
     }
 }
