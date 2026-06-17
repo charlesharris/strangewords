@@ -33,6 +33,16 @@ enum TimeOfDay: String {
         }
     }
 
+    /// Next in the daily cycle (morning → afternoon → night → …). Used by the
+    /// dev time-of-day toggle to preview each backdrop.
+    var next: TimeOfDay {
+        switch self {
+        case .morning:   return .afternoon
+        case .afternoon: return .night
+        case .night:     return .morning
+        }
+    }
+
     var palette: Palette {
         switch self {
         case .morning:
