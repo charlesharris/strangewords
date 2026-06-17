@@ -51,10 +51,16 @@ Easiest — build and launch on simulators with one command:
 ```sh
 ./run.sh                  # two simulators — be both strangers yourself
 ./run.sh --solo           # one simulator — pair it with the robot poet
+./run.sh --mock           # one simulator — no backend; an on-device stranger
+                          #   auto-replies (fastest loop for design/feel work)
 ./run.sh --solo --night   # force a theme: --morning | --afternoon | --night
 ```
 
 Re-run `./run.sh` anytime to rebuild and relaunch with your latest changes.
+
+**Mock mode** (`--mock`, or `SW_LOCAL_MOCK=1`) needs no backend, Redis, or robot:
+it matches you instantly with a simulated stranger who writes its lines after a
+short pause, then completes and dissolves — the whole arc on one simulator.
 
 Or open it in Xcode directly:
 

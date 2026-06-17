@@ -22,6 +22,14 @@ targets:
       path: Strangewords/Info.plist
       properties:
         CFBundleDisplayName: Strangewords
+        # Bundled type voices (Resources/Fonts). Fraunces is the display serif
+        # (it optically sizes itself via its opsz axis); Inter is the body/chrome
+        # sans. iOS auto-registers anything listed here at launch.
+        UIAppFonts:
+          - Fraunces.ttf
+          - Fraunces-SemiBold.ttf
+          - Fraunces-Italic.ttf
+          - Inter.ttf
         UILaunchScreen: {}
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false

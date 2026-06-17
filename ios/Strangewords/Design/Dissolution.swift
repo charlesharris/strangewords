@@ -1,0 +1,317 @@
+import SwiftUI
+
+// MARK: - The swappable seam
+
+/// Everything a dissolution effect needs: the finished poem and the scene it
+/// lives in.
+struct DissolutionContext {
+    let lines: [String]
+    let palette: Palette
+    let timeOfDay: TimeOfDay
+    let reduceMotion: Bool
+}
+
+/// A dissolution effect renders the finished poem and animates its
+/// disappearance — the app's emotional climax, the moment of letting go
+/// (brief.v4.md §8). Effects are interchangeable so the *feel* of dissolution
+/// can evolve: add a new type, conform it here, and point `Dissolutions.current`
+/// at it. The reveal flow never changes.
+protocol DissolutionEffect {
+    /// How long the effect runs before the poem is gone (seconds).
+    var duration: Double { get }
+    /// A view that shows `ctx.lines` settled, then animates them away, calling
+    /// `onComplete` exactly once when nothing remains.
+    func makeBody(_ ctx: DissolutionContext, onComplete: @escaping () -> Void) -> AnyView
+}
+
+/// The active effect. Swap this one line to change how every poem dissolves.
+/// (Reduce Motion is honored inside each effect, so this stays a single choice.)
+///
+/// Options today: `PixelPetalDissolution` (matches the pixel-art scene),
+/// `PetalDissolution` (soft vector petals), `FadeDissolution` (minimal).
+enum Dissolutions {
+    static let current: any DissolutionEffect = PixelPetalDissolution()
+}
+
+// MARK: - Petal dissolution
+
+/// The default: the poem rises and fades while a scatter of cherry petals
+/// detaches and drifts down across the words, carrying them away. Under Reduce
+/// Motion it becomes a still, slow fade.
+struct PetalDissolution: DissolutionEffect {
+    var duration: Double = 3.6
+    func makeBody(_ ctx: DissolutionContext, onComplete: @escaping () -> Void) -> AnyView {
+        AnyView(PetalDissolutionView(ctx: ctx, duration: duration, onComplete: onComplete))
+    }
+}
+
+private struct PetalDissolutionView: View {
+    let ctx: DissolutionContext
+    let duration: Double
+    let onComplete: () -> Void
+
+    @State private var gone = false
+
+    var body: some View {
+        ZStack {
+            // The poem itself, drifting upward and fading line by line.
+            VStack(spacing: 18) {
+                ForEach(Array(ctx.lines.enumerated()), id: \.offset) { i, line in
+                    Text(line)
+                        .font(Theme.poem())
+                        .foregroundStyle(ctx.palette.ink)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .opacity(gone ? 0 : 1)
+                        .offset(y: lift(i))
+                        .blur(radius: gone && !ctx.reduceMotion ? 5 : 0)
+                        .animation(lineAnimation(i), value: gone)
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            // The petals — the motion layer, skipped under Reduce Motion.
+            if !ctx.reduceMotion {
+                PetalFall(color: ctx.palette.accent, gone: gone, duration: duration)
+                    .allowsHitTesting(false)
+            }
+        }
+        .onAppear {
+            withAnimation { gone = true }   // per-element animations carry the timing
+        }
+        .task {
+            try? await Task.sleep(for: .seconds(duration))
+            onComplete()
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("The poem is dissolving.")
+    }
+
+    private func lift(_ i: Int) -> CGFloat {
+        guard gone, !ctx.reduceMotion else { return 0 }
+        return -28 - CGFloat(i) * 4
+    }
+
+    /// Lines leave top-first, gently staggered, so the poem reads as lifting away.
+    private func lineAnimation(_ i: Int) -> Animation {
+        if ctx.reduceMotion {
+            return .easeInOut(duration: duration * 0.8)
+        }
+        let stagger = Double(i) * (duration * 0.10)
+        return .easeIn(duration: duration * 0.65).delay(stagger)
+    }
+}
+
+// MARK: - Falling petals
+
+private struct PetalFall: View {
+    let color: Color
+    let gone: Bool
+    let duration: Double
+
+    private static let count = 16
+
+    var body: some View {
+        GeometryReader { geo in
+            ForEach(0..<Self.count, id: \.self) { i in
+                let s = spec(i)
+                PetalShape()
+                    .fill(color.opacity(gone ? 0 : s.opacity))
+                    .frame(width: s.size, height: s.size * 1.15)
+                    .rotationEffect(.degrees(gone ? s.spin : s.spin * 0.2))
+                    .position(
+                        x: geo.size.width * s.x + (gone ? s.drift : 0),
+                        y: geo.size.height * (gone ? s.endY : s.startY)
+                    )
+                    .animation(.easeIn(duration: duration).delay(s.delay), value: gone)
+            }
+        }
+    }
+
+    private struct Spec {
+        let x, startY, endY: CGFloat
+        let drift, size: CGFloat
+        let spin, delay, opacity: Double
+    }
+
+    /// Deterministic per-petal parameters (hashed from the index), so the petals
+    /// don't rearrange on every redraw.
+    private func spec(_ i: Int) -> Spec {
+        func r(_ salt: Int) -> Double {
+            let x = sin(Double(i) * 12.9898 + Double(salt) * 78.233) * 43758.5453
+            return x - floor(x)
+        }
+        return Spec(
+            x: CGFloat(r(1)),
+            startY: CGFloat(r(2) * 0.55),
+            endY: 1.08 + CGFloat(r(3) * 0.12),
+            drift: CGFloat((r(4) - 0.5) * 140),
+            size: 9 + CGFloat(r(5) * 9),
+            spin: (r(6) - 0.5) * 420,
+            delay: r(7) * duration * 0.35,
+            opacity: 0.55 + r(8) * 0.4
+        )
+    }
+}
+
+/// A single soft cherry petal: an oval narrowing to a point at the top with a
+/// gentle notch at the base.
+struct PetalShape: Shape {
+    func path(in r: CGRect) -> Path {
+        let w = r.width, h = r.height
+        var p = Path()
+        p.move(to: CGPoint(x: w * 0.5, y: 0))
+        p.addQuadCurve(to: CGPoint(x: w, y: h * 0.6), control: CGPoint(x: w, y: h * 0.08))
+        p.addQuadCurve(to: CGPoint(x: w * 0.5, y: h * 0.86), control: CGPoint(x: w * 0.78, y: h))
+        p.addQuadCurve(to: CGPoint(x: 0, y: h * 0.6), control: CGPoint(x: w * 0.22, y: h))
+        p.addQuadCurve(to: CGPoint(x: w * 0.5, y: 0), control: CGPoint(x: 0, y: h * 0.08))
+        return p
+    }
+}
+
+// MARK: - Pixel petal dissolution
+
+/// The pixel-art counterpart to `PetalDissolution`, matching the `PixelScene`
+/// backdrop: the poem fades line by line while a fall of *blocky* cherry petals
+/// drifts down in whole-pixel steps, swaying as they go. No rotation (rotating
+/// pixels would blur), so the petals stay crisp. Reduce Motion drops the fall
+/// and keeps only the fade.
+struct PixelPetalDissolution: DissolutionEffect {
+    var duration: Double = 3.8
+    func makeBody(_ ctx: DissolutionContext, onComplete: @escaping () -> Void) -> AnyView {
+        AnyView(PixelPetalDissolutionView(ctx: ctx, duration: duration, onComplete: onComplete))
+    }
+}
+
+private struct PixelPetalDissolutionView: View {
+    let ctx: DissolutionContext
+    let duration: Double
+    let onComplete: () -> Void
+
+    @State private var gone = false
+    @State private var start: Date?
+
+    /// Pixel size of a petal cell, and how many petals fall.
+    private let cell: CGFloat = 8
+    private static let count = 24
+    /// A small blocky blossom — a diamond with a lighter heart at (1,1).
+    private let mask: [(Int, Int)] = [(1, 0), (0, 1), (1, 1), (2, 1), (1, 2)]
+
+    var body: some View {
+        ZStack {
+            // The poem, fading top-first.
+            VStack(spacing: 18) {
+                ForEach(Array(ctx.lines.enumerated()), id: \.offset) { i, line in
+                    Text(line)
+                        .font(Theme.poem())
+                        .foregroundStyle(ctx.palette.ink)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .opacity(gone ? 0 : 1)
+                        .animation(.easeIn(duration: duration * 0.55).delay(Double(i) * duration * 0.12), value: gone)
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            // The falling pixel petals — the motion layer.
+            if !ctx.reduceMotion {
+                TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { tl in
+                    Canvas { c, size in
+                        let t = start.map { tl.date.timeIntervalSince($0) } ?? 0
+                        drawPetals(&c, size: size, t: t)
+                    }
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                }
+                .ignoresSafeArea()
+            }
+        }
+        .onAppear {
+            start = Date()
+            withAnimation { gone = true }
+        }
+        .task {
+            try? await Task.sleep(for: .seconds(duration))
+            onComplete()
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("The poem is dissolving.")
+    }
+
+    private func drawPetals(_ c: inout GraphicsContext, size: CGSize, t: Double) {
+        let heartColor = ctx.palette.accent.mix(ctx.palette.sun, 0.45)
+        for i in 0..<Self.count {
+            let delay = hash(i, 7) * duration * 0.3
+            let local = t - delay
+            if local <= 0 { continue }
+            let p = min(1.0, local / max(duration - delay, 0.001))
+
+            let startX = hash(i, 1) * Double(size.width)
+            let startY = (0.18 + hash(i, 2) * 0.40) * Double(size.height)
+            let fall = p * Double(size.height) * 1.15
+            let sway = sin(t * (1.2 + hash(i, 3) * 1.6) + hash(i, 4) * 6.28) * (10 + hash(i, 5) * 16)
+
+            // Quantize to whole pixels so the motion reads as pixel art.
+            let qx = ((startX + sway) / Double(cell)).rounded() * Double(cell)
+            let qy = ((startY + fall) / Double(cell)).rounded() * Double(cell)
+
+            // Hold, then fade over the last 40% of the petal's life.
+            let fade = p < 0.6 ? 1.0 : max(0, 1 - (p - 0.6) / 0.4)
+            let opacity = (0.6 + hash(i, 6) * 0.4) * fade
+            if opacity <= 0.01 { continue }
+
+            for (dx, dy) in mask {
+                let color = (dx == 1 && dy == 1 ? heartColor : ctx.palette.accent).opacity(opacity)
+                let rect = CGRect(x: CGFloat(qx) + CGFloat(dx) * cell,
+                                  y: CGFloat(qy) + CGFloat(dy) * cell,
+                                  width: cell, height: cell)
+                c.fill(Path(rect), with: .color(color))
+            }
+        }
+    }
+
+    private func hash(_ i: Int, _ salt: Int) -> Double {
+        let x = sin(Double(i) * 12.9898 + Double(salt) * 78.233) * 43758.5453
+        return x - floor(x)
+    }
+}
+
+// MARK: - Fade dissolution (minimal alternate)
+
+/// A quiet alternate with no particles: the poem simply fades and settles. Kept
+/// as a second conformer to demonstrate the seam — set `Dissolutions.current`
+/// to `FadeDissolution()` to use it.
+struct FadeDissolution: DissolutionEffect {
+    var duration: Double = 2.6
+    func makeBody(_ ctx: DissolutionContext, onComplete: @escaping () -> Void) -> AnyView {
+        AnyView(FadeDissolutionView(ctx: ctx, duration: duration, onComplete: onComplete))
+    }
+}
+
+private struct FadeDissolutionView: View {
+    let ctx: DissolutionContext
+    let duration: Double
+    let onComplete: () -> Void
+    @State private var gone = false
+
+    var body: some View {
+        VStack(spacing: 18) {
+            ForEach(Array(ctx.lines.enumerated()), id: \.offset) { _, line in
+                Text(line)
+                    .font(Theme.poem())
+                    .foregroundStyle(ctx.palette.ink)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .opacity(gone ? 0 : 1)
+        .scaleEffect(gone && !ctx.reduceMotion ? 1.04 : 1)
+        .onAppear { withAnimation(.easeInOut(duration: duration * 0.9)) { gone = true } }
+        .task {
+            try? await Task.sleep(for: .seconds(duration))
+            onComplete()
+        }
+        .accessibilityLabel("The poem is dissolving.")
+    }
+}

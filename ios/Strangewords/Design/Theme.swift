@@ -95,15 +95,27 @@ extension EnvironmentValues {
 
 // MARK: - Typography
 
-/// Larken (display serif) + Inter (body) are the board's voices; until those
-/// faces are bundled, the system serif/rounded stand in. The poem is always
-/// the serif voice.
+/// Two voices, both bundled (Resources/Fonts, see project.yml UIAppFonts):
+/// **Fraunces** — a high-contrast display serif standing in the spirit of the
+/// board's Larken — carries the poem and the ritual chrome; it optically sizes
+/// itself as the point size changes (its `opsz` axis is left free). **Inter**
+/// is the quiet body/sans for hints and secondary copy. Sizes are declared
+/// `relativeTo:` a text style so they scale with Dynamic Type.
 enum Theme {
+    /// The poem voice and the warm ritual buttons.
     static func poem(_ size: CGFloat = 26) -> Font {
-        .system(size: size, weight: .regular, design: .serif)
+        .custom("Fraunces", size: size, relativeTo: .title2)
     }
-    static let chrome = Font.system(size: 15, weight: .regular, design: .default)
-    static let label = Font.system(size: 13, weight: .regular, design: .default)
+    /// The serif in italic — for the rare turned phrase.
+    static func poemItalic(_ size: CGFloat = 26) -> Font {
+        .custom("Fraunces", size: size, relativeTo: .title2).italic()
+    }
+    /// A weightier display cut for the single largest title.
+    static func display(_ size: CGFloat = 30) -> Font {
+        .custom("Fraunces SemiBold", size: size, relativeTo: .largeTitle)
+    }
+    static let chrome = Font.custom("Inter", size: 15, relativeTo: .subheadline)
+    static let label  = Font.custom("Inter", size: 13, relativeTo: .caption)
 }
 
 /// A line of poem in the shared serif voice, colored by the current palette.

@@ -74,20 +74,29 @@ struct ComposeView: View {
         }
     }
 
+    /// A quiet, optional nudge — never a gate. The 5-7-5 of a haiku is a gentle
+    /// shape to lean toward, not a rule that holds your line back, so the hint
+    /// stays recessive and is worded as an invitation (brief.v4.md §9).
     private var syllableHint: some View {
         let count = Syllables.count(model.draft)
         let target = session.currentTarget
-        return HStack(spacing: 6) {
-            Text("\(count)")
-                .font(Theme.label)
-                .foregroundStyle(palette.ink)
-            if let target {
-                Text("/ \(target) syllables")
-                    .font(Theme.label)
-                    .foregroundStyle(palette.secondary)
-            }
+        return Text(hintText(count: count, target: target))
+            .font(Theme.label)
+            .foregroundStyle(palette.secondary.opacity(0.7))
+            .multilineTextAlignment(.center)
+            .animation(.easeInOut(duration: 0.25), value: count)
+            .accessibilityLabel(
+                target.map { "About \($0) syllables suits this line. You've written \(count)." }
+                    ?? "\(count) syllables"
+            )
+    }
+
+    private func hintText(count: Int, target: Int?) -> String {
+        guard let target else {
+            return count == 0 ? " " : "\(count) syllables"
         }
-        .accessibilityLabel(target.map { "\(count) of about \($0) syllables" } ?? "\(count) syllables")
+        if count == 0 { return "a haiku rests near \(target) syllables here" }
+        return "\(count) syllables · near \(target), if you like"
     }
 
     private func canSubmit(_ model: AppModel) -> Bool {

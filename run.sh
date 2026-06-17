@@ -5,9 +5,11 @@
 #
 #   ./run.sh                two simulators (be both strangers yourself)
 #   ./run.sh --solo         one simulator   (pair with the robot poet instead)
+#   ./run.sh --mock         one simulator   (no backend: an on-device stranger
+#                                            auto-replies — for design iteration)
 #   ./run.sh --solo --night force a theme: --morning | --afternoon | --night
 #
-# The backend must be running. Start it in another terminal with:
+# The backend must be running (except with --mock). Start it in another terminal:
 #   ./run_test_server_and_robot_poet_friend.sh        (backend + robot)
 #   …or  (cd server && make run)                      (backend only)
 #
@@ -21,14 +23,17 @@ BUNDLE="com.strangewords.app"
 BASE="http://127.0.0.1:8080"
 
 DEVICES=("iPhone 16" "iPhone 16 Pro")
+MOCK=0
 for a in "$@"; do
   case "$a" in
     --solo|--one) DEVICES=("iPhone 16") ;;
+    --mock) DEVICES=("iPhone 16"); MOCK=1; export SIMCTL_CHILD_SW_LOCAL_MOCK=1 ;;
     --morning|--afternoon|--night) export SIMCTL_CHILD_SW_FORCE_TOD="${a#--}" ;;
     *) echo "unknown flag: $a"; exit 2 ;;
   esac
 done
 [[ -n "${SIMCTL_CHILD_SW_FORCE_TOD:-}" ]] && echo "▸ Forcing theme: $SIMCTL_CHILD_SW_FORCE_TOD"
+[[ "$MOCK" == "1" ]] && echo "▸ Mock mode: on-device stranger, no backend needed."
 
 command -v xcodegen >/dev/null || { echo "xcodegen not found — brew install xcodegen"; exit 1; }
 command -v xcodebuild >/dev/null || { echo "xcodebuild not found — install Xcode"; exit 1; }
@@ -45,11 +50,12 @@ if ! xcodebuild -project "$PROJ" -scheme Strangewords \
 fi
 [[ -d "$APP" ]] || { echo "Built app not found at $APP"; exit 1; }
 
-if ! curl -sf "$BASE/healthz" >/dev/null 2>&1; then
+if [[ "$MOCK" != "1" ]] && ! curl -sf "$BASE/healthz" >/dev/null 2>&1; then
   echo
   echo "⚠  Backend isn't running on $BASE — the app will show 'couldn't reach"
   echo "   the quiet room' when you tap begin. Start it in another terminal:"
   echo "     ./run_test_server_and_robot_poet_friend.sh"
+  echo "   (or run ./run.sh --mock to use the on-device stranger instead)"
   echo
 fi
 
@@ -90,7 +96,10 @@ done
 
 echo
 echo "════════════════════════════════════════════════════════════════"
-if [[ "${#DEVICES[@]}" -ge 2 ]]; then
+if [[ "$MOCK" == "1" ]]; then
+  echo "  One simulator is up in mock mode. Tap \"begin\" — an on-device"
+  echo "  stranger will match you and write its lines. No backend needed."
+elif [[ "${#DEVICES[@]}" -ge 2 ]]; then
   echo "  Two simulators are up. Tap \"begin\" on BOTH to match them"
   echo "  together and write a poem across the two windows."
 else

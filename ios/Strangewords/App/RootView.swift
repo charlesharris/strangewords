@@ -1,5 +1,12 @@
 import SwiftUI
 
+/// The two ways the day/night scene can be drawn. Swap `RootView.sceneStyle`
+/// to change the whole app's backdrop; both stay available as the look evolves.
+enum SceneStyle {
+    case pixel      // procedural pixel-art scene (PixelScene)
+    case painterly  // the soft vector scene (SceneBackground)
+}
+
 /// RootView switches on the model's phase over the day/night scene. Transitions
 /// are deliberately paced (a gentle fade) to honor the arc anticipation →
 /// intimacy → revelation → loss (brief.v4.md §8). The palette is chosen from
@@ -9,10 +16,13 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var tod = TimeOfDay.now()
 
+    /// The active backdrop. [TUNABLE] — pixel art is the current look.
+    private let sceneStyle: SceneStyle = .pixel
+
     var body: some View {
         let palette = tod.palette
         ZStack {
-            SceneBackground(palette: palette, timeOfDay: tod)
+            background(palette)
             content
                 .padding(.horizontal, 28)
         }
@@ -22,6 +32,14 @@ struct RootView: View {
         .animation(.easeInOut(duration: 0.6), value: model.phase)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { tod = TimeOfDay.now() }
+        }
+    }
+
+    @ViewBuilder
+    private func background(_ palette: Palette) -> some View {
+        switch sceneStyle {
+        case .pixel:     PixelScene(palette: palette, timeOfDay: tod)
+        case .painterly: SceneBackground(palette: palette, timeOfDay: tod)
         }
     }
 

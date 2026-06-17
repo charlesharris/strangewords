@@ -12,7 +12,7 @@ enum APIError: Error, Equatable {
 
 /// APIClient performs the HTTPS calls of the §7 contract. It is an actor so
 /// network work stays off the main thread; the token is read from TokenStore.
-actor APIClient {
+actor APIClient: Backend {
     static let shared = APIClient()
 
     /// Base URL of the Go backend. The simulator shares the host's network, so

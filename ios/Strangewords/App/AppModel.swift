@@ -28,9 +28,21 @@ final class AppModel {
     private(set) var submitError: String?
     private(set) var submitting = false
 
-    private let api = APIClient.shared
+    private let api: any Backend
     private var pollTask: Task<Void, Never>?
     private let pollInterval: Duration = .seconds(3) // [TUNABLE] plan.v1.md §10
+
+    /// The default backend is the real one, unless `SW_LOCAL_MOCK=1` selects the
+    /// on-device `LocalBackend` (see `./run.sh --mock`). Tests/previews can inject.
+    init(backend: (any Backend)? = nil) {
+        if let backend {
+            self.api = backend
+        } else if ProcessInfo.processInfo.environment["SW_LOCAL_MOCK"] == "1" {
+            self.api = LocalBackend()
+        } else {
+            self.api = APIClient.shared
+        }
+    }
 
     // MARK: - Entry
 

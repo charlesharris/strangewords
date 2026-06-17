@@ -11,7 +11,7 @@ struct ThresholdView: View {
             Spacer()
             VStack(spacing: 16) {
                 Text("Haiku for strangers")
-                    .font(Theme.poem(30))
+                    .font(Theme.display(34))
                     .foregroundStyle(palette.ink)
                     .multilineTextAlignment(.center)
                 Text("Write three lines with someone you'll never meet.\nThen let it go.")
