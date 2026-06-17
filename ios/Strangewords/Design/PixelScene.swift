@@ -62,6 +62,7 @@ private struct Painter {
             clouds(&ctx, cell: cell, cols: cols, horizon: farHorizon, frame: frame)
         }
 
+        cherryBranch(&ctx, cell: cell)
         hills(&ctx, cell: cell, cols: cols, rows: rows, farHorizon: farHorizon, nearHorizon: nearHorizon)
     }
 
@@ -202,6 +203,38 @@ private struct Painter {
             for (dx, dy) in mask {
                 px(&ctx, baseCol + dx, cloud.row + dy, cell: cell, color: white)
                 _ = idx
+            }
+        }
+    }
+
+    // MARK: Cherry branch — the recurring blossom motif, in pixels
+
+    /// A spare branch arcing in from the top-left corner with a few blossoms —
+    /// the boards' recurring motif (brief.v4.md §8), kept small and quiet. A
+    /// brown silhouette by day; pale and moonlit at night.
+    private func cherryBranch(_ ctx: inout GraphicsContext, cell: CGFloat) {
+        let ox = -1, oy = 7   // clear of the status bar
+        let branch: [(Int, Int)] = [
+            (0, 2), (1, 2), (2, 3), (3, 3), (4, 4), (5, 4), (6, 5), (7, 5),
+            (8, 6), (9, 6), (10, 7), (11, 7), (12, 8), (13, 8),
+            (5, 3), (6, 2),              // upward twig
+            (10, 5), (11, 4), (12, 3),   // upward twig
+            (3, 2),                      // small nub
+        ]
+        let branchColor = palette.isDark ? palette.secondary : palette.ink.opacity(0.6)
+        for (c, r) in branch {
+            px(&ctx, ox + c, oy + r, cell: cell, color: branchColor)
+        }
+
+        // Blossoms at the twig tips and a couple of nodes.
+        let mask: [(Int, Int)] = [(1, 0), (0, 1), (1, 1), (2, 1), (1, 2)]
+        let blossoms: [(Int, Int)] = [(5, 0), (11, 2), (12, 7), (0, 1), (8, 5)]
+        let petal = palette.accent
+        let heart = palette.sun.mix(palette.accent, 0.30)
+        for (bc, br) in blossoms {
+            for (dx, dy) in mask {
+                let color = (dx == 1 && dy == 1) ? heart : petal
+                px(&ctx, ox + bc + dx, oy + br + dy, cell: cell, color: color)
             }
         }
     }
