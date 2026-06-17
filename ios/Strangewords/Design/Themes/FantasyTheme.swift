@@ -147,8 +147,6 @@ private struct FantasyDissolutionView: View {
 
     @State private var gone = false
     @State private var start: Date?
-    private let cell: CGFloat = 7
-    private static let count = 30
 
     var body: some View {
         ZStack {
@@ -160,7 +158,8 @@ private struct FantasyDissolutionView: View {
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                         .opacity(gone ? 0 : 1)
-                        .animation(.easeIn(duration: duration * 0.55).delay(Double(i) * duration * 0.12), value: gone)
+                        // Bottom line burns away first, matching the upward flames.
+                        .animation(.easeIn(duration: duration * 0.5).delay(Double(ctx.lines.count - 1 - i) * duration * 0.14), value: gone)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -183,37 +182,51 @@ private struct FantasyDissolutionView: View {
         .accessibilityLabel("The poem is dissolving.")
     }
 
+    /// Magical flames: a band of flickering fire sweeps up the whole scene
+    /// (hottest white/gold at the front, cooling through orange to violet at the
+    /// tips), with embers rising above it, while the text burns away.
     private func draw(_ c: inout GraphicsContext, size: CGSize, t: Double) {
+        let p = min(1.0, t / duration)
+        let cell = Pixel.cellSize(width: size.width, columns: 64)
+        let cols = Int((size.width / cell).rounded(.up))
+        let rows = Int((size.height / cell).rounded(.up))
+
         let gold = ctx.palette.sun
+        let orange = Color(0xFF7A2A)
         let violet = ctx.palette.accent
-        for i in 0..<Self.count {
-            let delay = Pixel.hash(i, 7) * duration * 0.4
-            let local = t - delay
-            if local <= 0 { continue }
-            let p = min(1.0, local / max(duration - delay, 0.001))
+        func fire(_ f: Double) -> Color {
+            if f < 0.25 { return Color.white.mix(gold, f * 4) }
+            if f < 0.6 { return gold.mix(orange, (f - 0.25) / 0.35) }
+            return orange.mix(violet, min(1, (f - 0.6) / 0.4))
+        }
 
-            let startX = Pixel.hash(i, 1) * Double(size.width)
-            let startY = (0.34 + Pixel.hash(i, 2) * 0.34) * Double(size.height)
-            let rise = p * Double(size.height) * 0.6
-            let sway = sin(local * (0.9 + Pixel.hash(i, 3) * 1.4) + Pixel.hash(i, 4) * 6.28) * (16 + Pixel.hash(i, 5) * 24)
+        // The flame front rises from the bottom to above the top.
+        let baseRow = Int(Double(rows) - p * (Double(rows) + 8))
 
-            let pcell = cell * (0.6 + Pixel.hash(i, 11) * 0.9)
-            let qx = ((startX + sway) / Double(pcell)).rounded() * Double(pcell)
-            let qy = ((startY - rise) / Double(pcell)).rounded() * Double(pcell)
-
-            // Gentle twinkle plus a fade over the last third.
-            let twinkle = 0.55 + 0.45 * sin(local * 6 + Double(i))
-            let fade = p < 0.66 ? 1.0 : max(0, 1 - (p - 0.66) / 0.34)
-            let opacity = twinkle * fade
-            if opacity <= 0.03 { continue }
-
-            let core = (i % 2 == 0 ? gold : violet)
-            // A soft glow (faint orthogonal halo) around a bright core.
-            for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
-                c.fill(Path(CGRect(x: qx + Double(dx) * Double(pcell), y: qy + Double(dy) * Double(pcell), width: pcell, height: pcell)),
-                       with: .color(core.opacity(opacity * 0.22)))
+        // The licking flame band at the front.
+        for col in 0..<cols {
+            let flick = Pixel.hash(col, (Int(t * 10) % 89) + 1)
+            let height = 3 + Int(flick * 5)
+            for k in 0..<height {
+                let row = baseRow - k
+                if row < 0 || row >= rows { continue }
+                if (Int(t * 16) + col * 5 + k * 3) % 6 == 0 { continue }   // flicker gaps
+                let frac = Double(k) / Double(height)
+                Pixel.fill(&c, col, row, cell, fire(frac).opacity(1 - frac * 0.4))
             }
-            c.fill(Path(CGRect(x: qx, y: qy, width: pcell, height: pcell)), with: .color(core.opacity(opacity)))
+        }
+
+        // Embers rising and fading above the front.
+        for i in 0..<22 {
+            let col = Int(Pixel.hash(i, 1) * Double(cols))
+            let phase = t * (0.6 + Pixel.hash(i, 2)) + Pixel.hash(i, 3) * 3
+            let age = phase - floor(phase)
+            let row = baseRow - Int(age * 16) - 2
+            if row < 0 || row >= rows { continue }
+            let on = (Int(t * 14) + i) % 4 != 0
+            let opacity = (1 - age) * (on ? 1 : 0.3)
+            if opacity <= 0.05 { continue }
+            Pixel.fill(&c, col, row, cell, fire(0.4 + age * 0.5).opacity(opacity))
         }
     }
 }

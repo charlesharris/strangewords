@@ -145,8 +145,6 @@ private struct SciFiDissolutionView: View {
 
     @State private var gone = false
     @State private var start: Date?
-    private let cell: CGFloat = 7
-    private static let count = 34
 
     var body: some View {
         ZStack {
@@ -181,34 +179,26 @@ private struct SciFiDissolutionView: View {
         .accessibilityLabel("The poem is dissolving.")
     }
 
+    /// A full-screen "derez": cells flare on in a random order and clear again,
+    /// sweeping a neon pixel-dissolve across the whole scene while the text fades.
     private func draw(_ c: inout GraphicsContext, size: CGSize, t: Double) {
+        let p = min(1.0, t / duration)
+        let cell = Pixel.cellSize(width: size.width, columns: 64)
+        let cols = Int((size.width / cell).rounded(.up))
+        let rows = Int((size.height / cell).rounded(.up))
         let neon = ctx.palette.accent
         let glow = ctx.palette.sun
-        for i in 0..<Self.count {
-            let delay = Pixel.hash(i, 7) * duration * 0.35
-            let local = t - delay
-            if local <= 0 { continue }
-            let p = min(1.0, local / max(duration - delay, 0.001))
-
-            let startX = Pixel.hash(i, 1) * Double(size.width)
-            let startY = (0.34 + Pixel.hash(i, 2) * 0.32) * Double(size.height)
-            let rise = p * Double(size.height) * 0.7
-            let drift = sin(local * (1.5 + Pixel.hash(i, 3) * 2) + Pixel.hash(i, 4) * 6.28) * (10 + Pixel.hash(i, 5) * 30)
-
-            let pcell = cell * (0.7 + Pixel.hash(i, 11) * 1.1)
-            let qx = ((startX + drift) / Double(pcell)).rounded() * Double(pcell)
-            let qy = ((startY - rise) / Double(pcell)).rounded() * Double(pcell)
-
-            // Flicker on/off, and fade over the last third.
-            let flicker = (Int(t * 14) + i * 3) % 3 != 0
-            let fade = p < 0.66 ? 1.0 : max(0, 1 - (p - 0.66) / 0.34)
-            let opacity = (flicker ? 1.0 : 0.25) * fade * (0.7 + Pixel.hash(i, 6) * 0.3)
-            if opacity <= 0.02 { continue }
-
-            let color = (i % 4 == 0 ? glow : neon).opacity(opacity)
-            // Small fragment: 1 or 2 cells.
-            let big = Pixel.hash(i, 8) > 0.6
-            c.fill(Path(CGRect(x: qx, y: qy, width: pcell * (big ? 2 : 1), height: pcell)), with: .color(color))
+        let window = 0.18
+        for row in 0..<rows {
+            for col in 0..<cols {
+                let threshold = Pixel.hash(col * 131 + row * 977, 1) * (1 - window)
+                let d = p - threshold
+                if d < 0 || d > window { continue }
+                if (Int(t * 16) + col * 3 + row * 7) % 4 == 0 { continue }   // flicker
+                let k = 1 - abs(d / window - 0.5) * 2                         // brightness peaks mid-window
+                let color = (Pixel.hash(col + row * 31, 2) > 0.82 ? glow : neon).opacity(0.45 + 0.55 * k)
+                Pixel.fill(&c, col, row, cell, color)
+            }
         }
     }
 }
