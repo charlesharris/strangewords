@@ -26,10 +26,15 @@ struct RootView: View {
         let palette = tod.palette
         ZStack {
             background(palette)
-            SceneDepthOverlay(palette: palette)
-                .opacity(sceneDepth)
-            content
-                .padding(.horizontal, 28)
+            if Dev.previewDissolution {
+                SceneDepthOverlay(palette: palette).opacity(0.7)
+                DissolutionPreviewView().padding(.horizontal, 28)
+            } else {
+                SceneDepthOverlay(palette: palette)
+                    .opacity(sceneDepth)
+                content
+                    .padding(.horizontal, 28)
+            }
         }
         .overlay(alignment: .topTrailing) { devTimeOfDayToggle(palette) }
         .environment(\.palette, palette)
@@ -112,6 +117,26 @@ struct RootView: View {
         case .dissolved(let reason):
             DissolvedView(reason: reason).transition(.opacity)
         }
+    }
+}
+
+/// Dev-only: loops the active dissolution effect over the scene so the petal
+/// animation can be seen and tuned without playing a whole poem. Shown when
+/// `SW_DEV_DISSOLVE=1` (see `Dev.previewDissolution`).
+struct DissolutionPreviewView: View {
+    @Environment(\.palette) private var palette
+    @Environment(\.timeOfDay) private var timeOfDay
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var runID = 0
+    private let lines = ["an old silent pond", "a frog slips into the dark", "the moon lets go"]
+
+    var body: some View {
+        Dissolutions.current.makeBody(
+            DissolutionContext(lines: lines, palette: palette, timeOfDay: timeOfDay, reduceMotion: reduceMotion)
+        ) {
+            runID += 1   // re-create the effect so it plays again, on a loop
+        }
+        .id(runID)
     }
 }
 

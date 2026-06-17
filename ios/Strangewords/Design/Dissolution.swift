@@ -193,8 +193,17 @@ private struct PixelPetalDissolutionView: View {
     /// Pixel size of a petal cell, and how many petals fall.
     private let cell: CGFloat = 8
     private static let count = 24
-    /// A small blocky blossom — a diamond with a lighter heart at (1,1).
-    private let mask: [(Int, Int)] = [(1, 0), (0, 1), (1, 1), (2, 1), (1, 2)]
+
+    /// Hand-drawn petal frames, centered on (0,0). Cycling them flips the petal
+    /// without ever rotating a sprite (which would blur). The sequence reads
+    /// edge-on → three-quarter → full → three-quarter, so a petal looks like
+    /// it's turning over as it falls. `true` marks the lighter heart cell.
+    private static let frames: [[(x: Int, y: Int, heart: Bool)]] = [
+        [(0, -1, false), (0, 0, true), (0, 1, false)],                                       // edge-on sliver
+        [(0, -1, false), (0, 0, true), (1, 0, false), (0, 1, false)],                        // three-quarter
+        [(0, -1, false), (-1, 0, false), (0, 0, true), (1, 0, false), (0, 1, false)],        // full
+        [(0, -1, false), (-1, 0, false), (0, 0, true), (0, 1, false)],                       // three-quarter (other side)
+    ]
 
     var body: some View {
         ZStack {
@@ -251,9 +260,16 @@ private struct PixelPetalDissolutionView: View {
             let p = min(1.0, local / max(duration - delay, 0.001))
 
             let startX = hash(i, 1) * Double(size.width)
-            let startY = (0.18 + hash(i, 2) * 0.40) * Double(size.height)
+            let startY = (0.16 + hash(i, 2) * 0.40) * Double(size.height)
             let fall = p * Double(size.height) * 1.15
-            let sway = sin(t * (1.2 + hash(i, 3) * 1.6) + hash(i, 4) * 6.28) * (10 + hash(i, 5) * 16)
+
+            // A lazy S-curve: two sines combine into an organic side-to-side
+            // path, so the petals catch the air instead of dropping straight.
+            let phase = hash(i, 4) * 6.28
+            let freq = 0.8 + hash(i, 3) * 0.8
+            let amp = 18 + hash(i, 5) * 22
+            let sway = sin(local * freq + phase) * amp
+                     + sin(local * freq * 0.5 + phase) * (amp * 0.4)
 
             // Quantize to whole pixels so the motion reads as pixel art.
             let qx = ((startX + sway) / Double(cell)).rounded() * Double(cell)
@@ -264,13 +280,21 @@ private struct PixelPetalDissolutionView: View {
             let opacity = (0.6 + hash(i, 6) * 0.4) * fade
             if opacity <= 0.01 { continue }
 
+            // Flip-flutter: step through the frames at the petal's own rate and
+            // direction, so it turns over as it falls.
+            let fps = 2.5 + hash(i, 8) * 3.0
+            let dir = hash(i, 9) < 0.5 ? 1 : -1
+            var fi = (Int(local * fps) * dir + Int(hash(i, 10) * Double(Self.frames.count))) % Self.frames.count
+            if fi < 0 { fi += Self.frames.count }
+            let frame = Self.frames[fi]
+
             let body = (i % 2 == 0) ? tintPink : tintPurple
             let heart = ctx.palette.sun.mix(body, 0.5)
 
-            for (dx, dy) in mask {
-                let color = (dx == 1 && dy == 1 ? heart : body).opacity(opacity)
-                let rect = CGRect(x: CGFloat(qx) + CGFloat(dx) * cell,
-                                  y: CGFloat(qy) + CGFloat(dy) * cell,
+            for cellSpec in frame {
+                let color = (cellSpec.heart ? heart : body).opacity(opacity)
+                let rect = CGRect(x: CGFloat(qx) + CGFloat(cellSpec.x) * cell,
+                                  y: CGFloat(qy) + CGFloat(cellSpec.y) * cell,
                                   width: cell, height: cell)
                 c.fill(Path(rect), with: .color(color))
             }
