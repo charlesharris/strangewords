@@ -127,16 +127,13 @@ These are choices made during the build that a future session should know:
 
 ## Deployment (in progress)
 
-Backend deploy to **Fly.io** is scaffolded but **not yet deployed**. Files: `server/Dockerfile` (static binary on alpine, non-root), `server/fly.toml` (app `strangewords`, region `sjc`, one warm machine, `/healthz` check), `server/.dockerignore`. The server reads `SW_ADDR`, `SW_REDIS_ADDR`, `SW_REDIS_PASSWORD`, `SW_REDIS_TLS` (TLS for `rediss://` endpoints).
+Backend deploy to **Fly.io** is scaffolded but **not yet deployed**.
 
-Runbook to finish (not yet run):
-1. `cd server && fly launch --no-deploy` (or `fly apps create strangewords`).
-2. Provision Redis (e.g. Upstash) in the same region; note the host/port/password and whether it needs TLS.
-3. `fly secrets set SW_REDIS_ADDR=… SW_REDIS_PASSWORD=… SW_REDIS_TLS=1`.
-4. `fly deploy`; verify `curl https://<app>.fly.dev/healthz`.
-5. Point the iOS app's base URL at the deployed host (currently `http://127.0.0.1:8080` in `ios/.../Net/APIClient.swift`; the dev-only ATS exception in `project.yml` allows local HTTP — production should be HTTPS).
+- **Authoritative runbook: [`server/DEPLOY.md`](../server/DEPLOY.md)** — bootstrap, Redis, `fly secrets`, custom hostname `api.strangewords.app`, and the env vars (`SW_ADDR`, `SW_REDIS_ADDR/PASSWORD/TLS`).
+- Files: `server/Dockerfile` (static binary on alpine, non-root), `server/fly.toml` (app `strangewords`, region `sjc`, one warm machine, `/healthz` check), `server/.dockerignore`, and CI auto-deploy in `.github/workflows/fly-deploy.yml`.
+- **Still TODO:** actually run the bootstrap + first `fly deploy`; then **repoint the iOS app** — `APIClient.base` is still `http://127.0.0.1:8080` and should become `https://api.strangewords.app` (and the dev-only local-HTTP ATS exception in `project.yml` can go for production).
 
-> Note: the Fly.io files landed bundled into the skyline commit `36582c7` (an accidental `git add -A`); content is correct and tests pass, history left as-is.
+> Tracking notes: `server/DEPLOY.md` and `.github/workflows/fly-deploy.yml` are **untracked** as of this snapshot (not yet committed). The `Dockerfile`/`fly.toml`/`.dockerignore` + Redis-TLS config landed bundled into commit `36582c7` (an accidental `git add -A`); content is correct and tests pass, history left as-is.
 
 ---
 
