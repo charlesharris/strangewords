@@ -74,19 +74,22 @@ resolve_udid() {
     | grep -oiE "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}"
 }
 
-# Shut down any of *our* known simulators that aren't part of this run, so a
-# leftover (e.g. the second sim from a prior two-up run) doesn't linger as a
-# confusing idle window. Only touches devices this script family uses.
-ALL_DEVICES=("iPhone 16" "iPhone 16 Pro")
-is_target() { for d in "${DEVICES[@]}"; do [[ "$d" == "$1" ]] && return 0; done; return 1; }
-booted="$(xcrun simctl list devices booted)"
-for name in "${ALL_DEVICES[@]}"; do
-  is_target "$name" && continue
-  udid="$(resolve_udid "$name")"
-  if [[ -n "$udid" ]] && grep -q "$udid" <<<"$booted"; then
-    echo "▸ Shutting down stray simulator not in this run: $name"
-    xcrun simctl shutdown "$udid" >/dev/null 2>&1 || true
-  fi
+# Resolve the simulator(s) this run will use.
+TARGET_UDIDS=""
+for name in "${DEVICES[@]}"; do
+  u="$(resolve_udid "$name")"
+  [[ -n "$u" ]] && TARGET_UDIDS="$TARGET_UDIDS $u"
+done
+in_targets() { case " $TARGET_UDIDS " in *" $1 "*) return 0 ;; esac; return 1; }
+
+# Shut down every *other* booted simulator so a leftover (e.g. an iPhone 16 Plus
+# from a previous session) doesn't launch alongside ours and clutter the run.
+# Only already-booted devices are touched; nothing is deleted.
+for udid in $(xcrun simctl list devices booted \
+                | grep -oiE "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}"); do
+  in_targets "$udid" && continue
+  echo "▸ Shutting down stray simulator: $udid"
+  xcrun simctl shutdown "$udid" >/dev/null 2>&1 || true
 done
 
 open -a Simulator
