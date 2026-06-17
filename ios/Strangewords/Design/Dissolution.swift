@@ -173,8 +173,8 @@ struct PetalShape: Shape {
 
 /// The pixel-art counterpart to `PetalDissolution`, matching the `PixelScene`
 /// backdrop: the poem fades line by line while a fall of blocky cherry petals
-/// drifts down, swaying and slowly tumbling as they go. At night the petals lean
-/// pinker/purpler. Reduce Motion drops the fall and keeps only the fade.
+/// drifts down in whole-pixel steps, swaying as they go. At night the petals
+/// lean pinker/purpler. Reduce Motion drops the fall and keeps only the fade.
 struct PixelPetalDissolution: DissolutionEffect {
     var duration: Double = 3.8
     func makeBody(_ ctx: DissolutionContext, onComplete: @escaping () -> Void) -> AnyView {
@@ -193,15 +193,8 @@ private struct PixelPetalDissolutionView: View {
     /// Pixel size of a petal cell, and how many petals fall.
     private let cell: CGFloat = 8
     private static let count = 24
-    /// A small petal sprite, centered on (0,0): a tip at the top and a notch at
-    /// the base, so it's asymmetric and its tumble reads. `true` marks the heart
-    /// cell, drawn a touch lighter.
-    private static let sprite: [(x: Int, y: Int, heart: Bool)] = [
-        (0, -2, false),
-        (-1, -1, false), (0, -1, true), (1, -1, false),
-        (-1, 0, false), (0, 0, false), (1, 0, false),
-        (-1, 1, false), (1, 1, false),
-    ]
+    /// A small blocky blossom — a diamond with a lighter heart at (1,1).
+    private let mask: [(Int, Int)] = [(1, 0), (0, 1), (1, 1), (2, 1), (1, 2)]
 
     var body: some View {
         ZStack {
@@ -260,35 +253,26 @@ private struct PixelPetalDissolutionView: View {
             let startX = hash(i, 1) * Double(size.width)
             let startY = (0.18 + hash(i, 2) * 0.40) * Double(size.height)
             let fall = p * Double(size.height) * 1.15
-            let sway = sin(t * (1.0 + hash(i, 3) * 1.6) + hash(i, 4) * 6.28) * (14 + hash(i, 5) * 20)
+            let sway = sin(t * (1.2 + hash(i, 3) * 1.6) + hash(i, 4) * 6.28) * (10 + hash(i, 5) * 16)
 
-            // Pixel-stepped drift; rotation is smooth so the petals tumble.
-            let cx = ((startX + sway) / Double(cell)).rounded() * Double(cell)
-            let cy = ((startY + fall) / Double(cell)).rounded() * Double(cell)
+            // Quantize to whole pixels so the motion reads as pixel art.
+            let qx = ((startX + sway) / Double(cell)).rounded() * Double(cell)
+            let qy = ((startY + fall) / Double(cell)).rounded() * Double(cell)
 
             // Hold, then fade over the last 40% of the petal's life.
             let fade = p < 0.6 ? 1.0 : max(0, 1 - (p - 0.6) / 0.4)
             let opacity = (0.6 + hash(i, 6) * 0.4) * fade
             if opacity <= 0.01 { continue }
 
-            // A slow tumble: each petal spins its own way at its own speed.
-            let dir = hash(i, 9) < 0.5 ? -1.0 : 1.0
-            let angle = hash(i, 8) * 360 + t * (40 + hash(i, 10) * 70) * dir
-
             let body = (i % 2 == 0) ? tintPink : tintPurple
             let heart = ctx.palette.sun.mix(body, 0.5)
 
-            // Draw the sprite into a rotated copy of the context (the original is
-            // untouched), pivoting on the petal's center.
-            var lc = c
-            lc.translateBy(x: CGFloat(cx), y: CGFloat(cy))
-            lc.rotate(by: .degrees(angle))
-            for cellSpec in Self.sprite {
-                let color = (cellSpec.heart ? heart : body).opacity(opacity)
-                let rect = CGRect(x: CGFloat(cellSpec.x) * cell - cell / 2,
-                                  y: CGFloat(cellSpec.y) * cell - cell / 2,
+            for (dx, dy) in mask {
+                let color = (dx == 1 && dy == 1 ? heart : body).opacity(opacity)
+                let rect = CGRect(x: CGFloat(qx) + CGFloat(dx) * cell,
+                                  y: CGFloat(qy) + CGFloat(dy) * cell,
                                   width: cell, height: cell)
-                lc.fill(Path(rect), with: .color(color))
+                c.fill(Path(rect), with: .color(color))
             }
         }
     }
