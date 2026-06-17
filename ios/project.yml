@@ -21,7 +21,7 @@ targets:
     info:
       path: Strangewords/Info.plist
       properties:
-        CFBundleDisplayName: Strangewords
+        CFBundleDisplayName: Stranger Words
         # Bundled type voices (Resources/Fonts). Fraunces is the display serif
         # (it optically sizes itself via its opsz axis); Inter is the body/chrome
         # sans. iOS auto-registers anything listed here at launch.

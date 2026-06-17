@@ -1,7 +1,8 @@
-# strangewords
+# Stranger Words
 
-Haiku for strangers — an anonymous, ephemeral iOS app for writing a tiny poem
-with someone you'll never meet, then letting it go.
+An anonymous, ephemeral iOS app for writing a tiny poem with someone you'll
+never meet, then letting it go. (Repo, Go module, and Xcode target are named
+`strangewords`/`Strangewords`.)
 
 - **Current status (start here):** [`docs/STATUS.md`](docs/STATUS.md)
 - **Intent / philosophy:** [`brief.v4.md`](brief.v4.md)
