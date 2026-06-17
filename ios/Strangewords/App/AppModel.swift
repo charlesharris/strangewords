@@ -23,6 +23,16 @@ final class AppModel {
         case ended              // generic clean end
     }
 
+    // Small helpers used to detect meaningful phase transitions (e.g. for haptics).
+    private var composingSession: SessionView? {
+        if case .composing(let s) = phase { return s }
+        return nil
+    }
+    private var isReveal: Bool {
+        if case .reveal = phase { return true }
+        return false
+    }
+
     private(set) var phase: Phase = .threshold
     var draft: String = ""
     private(set) var submitError: String?
@@ -48,6 +58,7 @@ final class AppModel {
 
     /// Cross the threshold: enter the pool and either match or begin waiting.
     func begin() {
+        Haptics.soft()
         phase = .connecting
         Task {
             do {
@@ -89,6 +100,7 @@ final class AppModel {
         let text = draft
         let line = s.currentLine
         let idem = UUID().uuidString
+        Haptics.offer()
         submitting = true
         Task {
             defer { submitting = false }
@@ -144,14 +156,25 @@ final class AppModel {
 
     /// Project a server view onto a phase and arrange polling.
     private func apply(_ s: SessionView) {
+        // Read the outgoing phase before mutating, to detect real transitions.
+        let wasComposing = composingSession != nil
+        let wasYourTurn = composingSession?.yourTurn ?? false
+        let wasReveal = isReveal
+
         TokenStore.sessionId = s.sessionId
         stopPolling()
         switch s.status {
         case "active":
             phase = .composing(s)
+            if !wasComposing {
+                Haptics.arrival()                 // matched with a stranger
+            } else if !wasYourTurn && s.yourTurn {
+                Haptics.arrival()                 // the turn has come back to you
+            }
             if !s.yourTurn { pollSession(id: s.sessionId) }
         case "complete":
             phase = .reveal(s)
+            if !wasReveal { Haptics.reveal() }
         default:
             dissolve(.ended)
         }
