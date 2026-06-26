@@ -4,8 +4,15 @@ The backend is a single stateless Go binary (`cmd/server`) backed by Redis. It
 deploys to [Fly.io](https://fly.io) from the `server/` directory. All app config
 lives in [`fly.toml`](./fly.toml); the image is built from [`Dockerfile`](./Dockerfile).
 
-The iOS app talks to a stable custom hostname (`https://api.strangewords.app`),
+The iOS app talks to a stable custom hostname (`https://api.strangerwords.us`),
 so the backend can be re-pointed via DNS without an App Store update.
+
+> **On the name.** The public domain is **`strangerwords.us`** (with the "r",
+> matching the app's display name "Stranger Words"). The backend lives on the
+> `api.` subdomain; the apex `strangerwords.us` is reserved for a future landing
+> page. The internal Fly app name (`strangewords`, hence `strangewords.fly.dev`)
+> and the iOS bundle id (`com.strangewords.app`) keep the no-"r" spelling on
+> purpose — they're identifiers, never user-visible, and renaming them is churn.
 
 ## Configuration
 
@@ -67,15 +74,15 @@ fly logs                                       # expect "listening" + redis ping
 curl https://strangewords.fly.dev/healthz      # expect 200
 
 # 5. Custom domain + TLS cert.
-fly certs add api.strangewords.app
-fly certs show api.strangewords.app            # prints the exact DNS records to add
+fly certs add api.strangerwords.us
+fly certs show api.strangerwords.us            # prints the exact DNS records to add
 #    -> add those records at your DNS registrar (typically a CNAME
 #       api -> strangewords.fly.dev, plus AAAA/A if listed).
-fly certs check api.strangewords.app           # wait until it validates
-curl https://api.strangewords.app/healthz      # expect 200
+fly certs check api.strangerwords.us           # wait until it validates
+curl https://api.strangerwords.us/healthz      # expect 200
 ```
 
-After `api.strangewords.app/healthz` returns 200, the iOS base URL
+After `api.strangerwords.us/healthz` returns 200, the iOS base URL
 (`ios/Strangewords/Net/APIClient.swift`) points here.
 
 ## Continuous deployment (push-to-deploy)

@@ -131,9 +131,9 @@ These are choices made during the build that a future session should know:
 
 Backend deploy to **Fly.io** is scaffolded but **not yet deployed**.
 
-- **Authoritative runbook: [`server/DEPLOY.md`](../server/DEPLOY.md)** — bootstrap, Redis, `fly secrets`, custom hostname `api.strangewords.app`, and the env vars (`SW_ADDR`, `SW_REDIS_ADDR/PASSWORD/TLS`).
+- **Authoritative runbook: [`server/DEPLOY.md`](../server/DEPLOY.md)** — bootstrap, Redis, `fly secrets`, custom hostname `api.strangerwords.us`, and the env vars (`SW_ADDR`, `SW_REDIS_ADDR/PASSWORD/TLS`).
 - Files: `server/Dockerfile` (static binary on alpine, non-root), `server/fly.toml` (app `strangewords`, region `sjc`, one warm machine, `/healthz` check), `server/.dockerignore`, and CI auto-deploy in `.github/workflows/fly-deploy.yml`.
-- **Still TODO:** actually run the bootstrap + first `fly deploy`; then **repoint the iOS app** — `APIClient.base` is still `http://127.0.0.1:8080` and should become `https://api.strangewords.app` (and the dev-only local-HTTP ATS exception in `project.yml` can go for production).
+- **Still TODO:** actually run the bootstrap + first `fly deploy`; then **repoint the iOS app** — `APIClient.base` is still `http://127.0.0.1:8080` and should become `https://api.strangerwords.us` (and the dev-only local-HTTP ATS exception in `project.yml` can go for production).
 
 > Tracking notes: the full observability + deploy scaffolding (`DEPLOY.md`, `.github/workflows/fly-deploy.yml`, Prometheus `/metrics`, pprof, `GOMEMLIMIT`/automaxprocs) is now **committed** (`a5c2b5a`), as is the request-edge **hardening** — 16 KiB body cap, full server timeouts, panic→500 recovery, and per-IP rate limiting in `server/internal/gateway/middleware.go` (`5b51281`). flyctl is **not installed locally**; the next deploy step is `brew install flyctl` → `fly auth login` → the bootstrap in `DEPLOY.md`.
 
