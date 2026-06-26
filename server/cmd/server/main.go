@@ -19,6 +19,7 @@ import (
 	"strangewords/internal/config"
 	"strangewords/internal/gateway"
 	"strangewords/internal/matchmaker"
+	"strangewords/internal/moderation"
 	"strangewords/internal/push"
 	"strangewords/internal/store"
 )
@@ -42,7 +43,8 @@ func main() {
 	st := store.New(rdb)
 	mm := matchmaker.New(st)
 	notifier := push.Noop{Log: log}
-	srv := gateway.New(st, mm, notifier, log, cfg)
+	mod := moderation.LogSink{Log: log} // v1: reports captured to structured logs
+	srv := gateway.New(st, mm, notifier, mod, log, cfg)
 
 	httpSrv := &http.Server{
 		Addr:              cfg.Addr,

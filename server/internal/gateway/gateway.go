@@ -15,6 +15,7 @@ import (
 	"strangewords/internal/config"
 	"strangewords/internal/matchmaker"
 	"strangewords/internal/metrics"
+	"strangewords/internal/moderation"
 	"strangewords/internal/push"
 	"strangewords/internal/sessions"
 	"strangewords/internal/store"
@@ -24,14 +25,15 @@ type Server struct {
 	st      *store.Store
 	mm      *matchmaker.Matchmaker
 	push    push.Notifier
+	mod     moderation.Sink
 	log     *slog.Logger
 	cfg     config.Config
 	now     func() time.Time
 	limiter *rateLimiter // nil when rate limiting is disabled (RateRPS <= 0)
 }
 
-func New(st *store.Store, mm *matchmaker.Matchmaker, notifier push.Notifier, log *slog.Logger, cfg config.Config) *Server {
-	s := &Server{st: st, mm: mm, push: notifier, log: log, cfg: cfg, now: time.Now}
+func New(st *store.Store, mm *matchmaker.Matchmaker, notifier push.Notifier, mod moderation.Sink, log *slog.Logger, cfg config.Config) *Server {
+	s := &Server{st: st, mm: mm, push: notifier, mod: mod, log: log, cfg: cfg, now: time.Now}
 	if cfg.RateRPS > 0 {
 		s.limiter = newRateLimiter(cfg.RateRPS, cfg.RateBurst)
 	}
@@ -55,6 +57,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/session/{id}/line", s.handleLine)
 	mux.HandleFunc("POST /v1/session/{id}/leave", s.handleLeave)
 	mux.HandleFunc("POST /v1/session/{id}/dismiss", s.handleDismiss)
+	mux.HandleFunc("POST /v1/session/{id}/report", s.handleReport)
 
 	var h http.Handler = limitBody(mux)
 	if s.limiter != nil {
@@ -226,6 +229,9 @@ func (s *Server) handleLine(w http.ResponseWriter, r *http.Request) {
 	}
 	clean, err := sessions.CleanLine(req.Text)
 	if err != nil {
+		if errors.Is(err, sessions.ErrContentRejected) {
+			metrics.ContentRejected.Inc()
+		}
 		writeErr(w, http.StatusUnprocessableEntity, "content_rejected", err.Error())
 		return
 	}
@@ -303,6 +309,49 @@ func (s *Server) handleDismiss(w http.ResponseWriter, r *http.Request) {
 	_ = s.st.SaveSessionTTL(r.Context(), sess, store.RevealTTL)
 	v := sess.ViewFor(token)
 	writeJSON(w, http.StatusOK, v)
+}
+
+// maxReasonLen caps the optional free-text reason on a report.
+const maxReasonLen = 280
+
+type reportRequest struct {
+	Reason string `json:"reason"`
+}
+
+// handleReport captures an abuse report for the caller's session. It is the one
+// place a poem's content crosses the ephemerality boundary (brief.final.md §23):
+// any member may report while the session is still live (active or in its reveal
+// window), and the content is persisted to the moderation sink synchronously,
+// before the session's natural erase. No participant or push tokens are
+// captured — only the poem, the form, and which session it came from.
+func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {
+	sess, _, idx, ok := s.authSession(w, r)
+	if !ok {
+		return
+	}
+	var req reportRequest
+	_ = json.NewDecoder(r.Body).Decode(&req) // reason is optional
+	reason := strings.TrimSpace(req.Reason)
+	if n := []rune(reason); len(n) > maxReasonLen {
+		reason = string(n[:maxReasonLen])
+	}
+
+	if err := s.mod.Capture(r.Context(), moderation.Report{
+		SessionID:    sess.ID,
+		Form:         sess.FormID,
+		Lines:        sess.Lines,
+		Participants: len(sess.Participants),
+		ReporterIdx:  idx,
+		Reason:       reason,
+		CompletedAt:  sess.CompletedAt,
+		ReportedAt:   s.now().UnixMilli(),
+	}); err != nil {
+		s.log.Error("report capture failed", "session", sess.ID, "err", err)
+		writeErr(w, http.StatusInternalServerError, "internal", "could not file report")
+		return
+	}
+	metrics.Reports.Inc()
+	writeJSON(w, http.StatusOK, map[string]string{"status": "reported"})
 }
 
 // ---- helpers ----

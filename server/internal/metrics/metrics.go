@@ -37,6 +37,13 @@ var (
 	RateLimited     = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_rate_limited_total", Help: "Requests rejected by the per-IP rate limiter."})
 )
 
+// ---- safety / moderation ----
+
+var (
+	ContentRejected = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_content_rejected_total", Help: "Lines rejected by the abuse content filter."})
+	Reports         = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_reports_total", Help: "Abuse reports captured."})
+)
+
 // ---- RED: HTTP ----
 
 var (

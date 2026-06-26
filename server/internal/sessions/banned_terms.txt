@@ -1,0 +1,20 @@
+# Seed blocklist for the content filter (internal/sessions/content.go).
+#
+# Scope: unambiguous hate slurs ONLY. The brief errs toward allowing creative
+# expression, so general profanity is intentionally absent. One term per line;
+# '#' starts a comment. Terms are folded (lowercase, diacritic-strip, light
+# leet-fold) and matched as whole tokens, so list the plain base form.
+#
+# This is a minimal floor. Replace with a maintained, externally-sourced list
+# (and ideally per-locale) before a wide release.
+
+nigger
+nigga
+faggot
+chink
+spic
+kike
+wetback
+tranny
+gook
+coon

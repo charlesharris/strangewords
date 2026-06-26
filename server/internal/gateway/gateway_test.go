@@ -16,6 +16,7 @@ import (
 
 	"strangewords/internal/config"
 	"strangewords/internal/matchmaker"
+	"strangewords/internal/moderation"
 	"strangewords/internal/push"
 	"strangewords/internal/sessions"
 	"strangewords/internal/store"
@@ -39,7 +40,7 @@ func newRig(t *testing.T) *rig {
 	st := store.New(rdb)
 	mm := matchmaker.New(st)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	srv := New(st, mm, push.Noop{Log: log}, log, config.Load())
+	srv := New(st, mm, push.Noop{Log: log}, moderation.LogSink{Log: log}, log, config.Load())
 
 	ts := httptest.NewServer(srv.Routes())
 	t.Cleanup(ts.Close)

@@ -43,7 +43,7 @@ See `README.md` for the full set of run/test options.
 | 2 — APNs push | ⛔ not started | **blocked: needs Apple Developer account + APNs key.** `push.Noop` is wired in its place |
 | 3 — iOS core loop | ✅ working | live-verified via robot; the *async-by-push* half waits on Phase 2 |
 | 4 — Pacing / motion / a11y / copy | 🟡 mostly | Reduce-Motion-aware scenes, **bundled fonts (Fraunces + Inter)**, **softened syllable nudge**, **per-theme dissolution (full-screen)**, **per-state dusk deepening**, **haptics**, **shared button style**, **randomized splash**, basic VoiceOver labels. **Missing:** Dynamic Type audit, smooth theme transitions across an hour boundary, final copy pass |
-| 5 — Safety rails | 🟡 started | **per-IP rate limiting done** (token bucket on `Fly-Client-IP`); still missing: abusive-content filter, reporting + moderation store, EULA |
+| 5 — Safety rails | 🟡 started | **server side done**: per-IP rate limiting (token bucket on `Fly-Client-IP`), abuse content filter (slur blocklist → `422`), report endpoint (`POST …/report`) + moderation sink with capture-before-erase (`LogSink` now, durable Postgres later). **Remaining**: in-app report action + first-run EULA gate (iOS), post-dissolution report grace, maintained blocklist |
 | 6 — Observability + deploy → TestFlight | 🟡 started | **Prometheus `/metrics` (RED HTTP + Redis timing + business counters), pprof, `GOMEMLIMIT`/automaxprocs — done & committed**; **Fly.io deploy scaffolding (Dockerfile, `fly.toml`, Redis TLS, CI) in place — not yet deployed**; TestFlight still needs the Apple account |
 | Design pass 1 — time-of-day theming | ✅ done | palette from local hour |
 | Design pass 2 — richer scene | ✅ done | ridges, celestial body, stars/clouds, cherry branch (the "painterly" vector scene) |
@@ -71,6 +71,7 @@ server/          Go backend (one deployable)
     matchmaker   pop-and-pair / enqueue
     gateway      HTTP handlers, auth, coordination
     push         APNs notifier interface (Noop for now)
+    moderation   abuse-report sink — the one durable exception (LogSink for now)
     config, metrics
   Dockerfile, fly.toml, .dockerignore   Fly.io deploy (in progress)
 

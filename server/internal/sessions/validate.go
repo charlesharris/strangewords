@@ -46,6 +46,9 @@ func CleanLine(raw string) (string, error) {
 	if len([]rune(s)) > MaxLineLen {
 		return "", ErrLineTooLong
 	}
+	if defaultScreener.Rejects(s) {
+		return "", ErrContentRejected
+	}
 	return s, nil
 }
 

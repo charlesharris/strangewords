@@ -10,9 +10,10 @@ so the backend can be re-pointed via DNS without an App Store update.
 > **On the name.** The public domain is **`strangerwords.us`** (with the "r",
 > matching the app's display name "Stranger Words"). The backend lives on the
 > `api.` subdomain; the apex `strangerwords.us` is reserved for a future landing
-> page. The internal Fly app name (`strangewords`, hence `strangewords.fly.dev`)
-> and the iOS bundle id (`com.strangewords.app`) keep the no-"r" spelling on
-> purpose — they're identifiers, never user-visible, and renaming them is churn.
+> page. The Fly app is `strangerwords` (hence `strangerwords.fly.dev`). The Go
+> module/identifiers and the iOS bundle id (`com.strangewords.app`) keep the
+> no-"r" spelling on purpose — they're internal, never user-visible, and
+> renaming them is churn.
 
 ## Why Fly.io
 
@@ -37,7 +38,7 @@ CI workflow.
 
 ## Configuration
 
-The server reads three env vars (see `internal/config/config.go`):
+The server reads these env vars (see `internal/config/config.go`):
 
 | Var                 | Default            | Notes                                          |
 | ------------------- | ------------------ | ---------------------------------------------- |
@@ -67,6 +68,25 @@ The HTTP surface defends itself with a few always-on guards (no config needed):
   (CGNAT) can share one IP across many real users; rejections increment
   `sw_rate_limited_total`. Set `SW_RATE_RPS=0` to disable.
 
+### Safety / moderation
+
+Two product-level safety rails sit on top of the infra hardening (Phase 5):
+
+- **Content filter.** Submitted lines are screened against a small blocklist of
+  unambiguous slurs (`internal/sessions/banned_terms.txt`, matched as whole
+  tokens after a light leet-fold, so innocent words aren't caught). A hit is a
+  `422 content_rejected` and bumps `sw_content_rejected_total`. The list is a
+  deliberately minimal floor — the brief errs toward allowing creative
+  expression — and should be swapped for a maintained source before wide release.
+- **Abuse reports.** `POST /v1/session/{id}/report` lets any member capture a
+  live session's poem + metadata (no tokens — anonymity holds) to the moderation
+  **sink**, the one durable exception to the app's ephemerality. v1 uses
+  `moderation.LogSink` (structured logs, retained by Fly / forwardable to a
+  drain); swap in a Postgres/object-store `Sink` for review tooling without
+  touching callers. Reporting works while the session is live (active or in its
+  reveal window); a post-dissolution grace window and the in-app report action +
+  first-run EULA gate are the remaining Phase 5 (iOS) pieces.
+
 ## One-time bootstrap (run once, from your laptop)
 
 Creates the app, Redis, secrets, and custom domain. These persist on Fly.
@@ -76,9 +96,9 @@ brew install flyctl
 fly auth login
 cd server
 
-# 1. Create the app. Names are GLOBALLY unique — if "strangewords" is taken,
+# 1. Create the app. Names are GLOBALLY unique — if "strangerwords" is taken,
 #    pick another and update `app =` in fly.toml to match.
-fly apps create strangewords
+fly apps create strangerwords
 
 # 2. Create Redis in the SAME region as fly.toml (primary_region = "sjc").
 #    Copy the connection string it prints:
@@ -92,13 +112,13 @@ fly secrets set SW_REDIS_ADDR=fly-xxxx.upstash.io:6379 SW_REDIS_PASSWORD=PASSWOR
 # 4. First deploy + sanity check.
 fly deploy
 fly logs                                       # expect "listening" + redis ping ok
-curl https://strangewords.fly.dev/healthz      # expect 200
+curl https://strangerwords.fly.dev/healthz      # expect 200
 
 # 5. Custom domain + TLS cert.
 fly certs add api.strangerwords.us
 fly certs show api.strangerwords.us            # prints the exact DNS records to add
 #    -> add those records at your DNS registrar (typically a CNAME
-#       api -> strangewords.fly.dev, plus AAAA/A if listed).
+#       api -> strangerwords.fly.dev, plus AAAA/A if listed).
 fly certs check api.strangerwords.us           # wait until it validates
 curl https://api.strangerwords.us/healthz      # expect 200
 ```
@@ -144,6 +164,8 @@ The server exposes Prometheus metrics at `GET /metrics` (same port as the API):
 | `sw_redis_command_errors_total`     | counter   | Real Redis errors (cache misses excluded)          |
 | `sw_rate_limited_total`             | counter   | Requests rejected by the per-IP limiter            |
 | `sw_panics_recovered_total`         | counter   | Handler panics caught by the recovery middleware   |
+| `sw_content_rejected_total`         | counter   | Lines rejected by the abuse content filter         |
+| `sw_reports_total`                  | counter   | Abuse reports captured to the moderation sink      |
 | `sw_entered/matched/waiting/...`    | counters  | Business funnel                                    |
 
 Routes are templates (`POST /v1/session/{id}/line`), never concrete ids, so
