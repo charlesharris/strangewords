@@ -14,7 +14,7 @@ The **core experience works end to end**: a person enters, gets matched, takes t
 
 The **feel pass is substantially done**: bundled fonts (Fraunces + Inter), a procedural pixel-art scene, a full-screen dissolution, per-state dusk deepening, haptics, a shared button style, and a randomized splash. The look is now a **theme system** — three themes ship (**Nature**, **Sci-Fi**, **Fantasy**), each bundling its own palette-per-time-of-day, scene, and dissolution; the time of day and theme are both swappable from dev chips. The app's user-facing name is **"Stranger Words"** (the repo/target stay `strangewords`).
 
-**In progress:** Fly.io deployment scaffolding exists (Dockerfile, `fly.toml`, Redis TLS/password support) but hasn't been deployed yet — see "Deployment" below. The backend is now **deploy-hardened**: real Prometheus observability (RED HTTP + Redis-command timing + business counters), pprof behind a private addr, `GOMEMLIMIT`/automaxprocs, and request-edge defenses (16 KiB body cap, full server timeouts, panic→500 recovery, per-IP rate limiting). All committed; the only thing left is to actually run `fly deploy` (needs a Fly account + DNS).
+**Deployed:** the backend is **live on Fly.io** (app `strangerwords`, region `sjc`), reachable at `https://strangerwords.fly.dev` with `/healthz` green. It is **deploy-hardened**: real Prometheus observability (RED HTTP + Redis-command timing + business counters), pprof behind a private addr, `GOMEMLIMIT`/automaxprocs, and request-edge defenses (16 KiB body cap, full server timeouts, panic→500 recovery, per-IP rate limiting). Remaining: the `api.strangerwords.us` cert/DNS step so the iOS app (already pointed there) can reach it — see "Deployment" below.
 
 **Not yet built:** push notifications (the async/durable-connection headline — blocked on an Apple account), safety/moderation, Dynamic Type audit, final copy, and shipping to TestFlight.
 
@@ -44,7 +44,7 @@ See `README.md` for the full set of run/test options.
 | 3 — iOS core loop | ✅ working | live-verified via robot; the *async-by-push* half waits on Phase 2 |
 | 4 — Pacing / motion / a11y / copy | 🟡 mostly | Reduce-Motion-aware scenes, **bundled fonts (Fraunces + Inter)**, **softened syllable nudge**, **per-theme dissolution (full-screen)**, **per-state dusk deepening**, **haptics**, **shared button style**, **randomized splash**, basic VoiceOver labels. **Missing:** Dynamic Type audit, smooth theme transitions across an hour boundary, final copy pass |
 | 5 — Safety rails | 🟡 started | **server side done**: per-IP rate limiting (token bucket on `Fly-Client-IP`), abuse content filter (slur blocklist → `422`), report endpoint (`POST …/report`) + moderation sink with capture-before-erase (`LogSink` now, durable Postgres later). **Remaining**: in-app report action + first-run EULA gate (iOS), post-dissolution report grace, maintained blocklist |
-| 6 — Observability + deploy → TestFlight | 🟡 started | **Prometheus `/metrics` (RED HTTP + Redis timing + business counters), pprof, `GOMEMLIMIT`/automaxprocs — done & committed**; **Fly.io deploy scaffolding (Dockerfile, `fly.toml`, Redis TLS, CI) in place — not yet deployed**; TestFlight still needs the Apple account |
+| 6 — Observability + deploy → TestFlight | 🟡 started | **Prometheus `/metrics`, pprof, `GOMEMLIMIT`/automaxprocs — done**; **backend LIVE on Fly.io** (`strangerwords.fly.dev`, healthz green); remaining: `api.strangerwords.us` cert/DNS, then TestFlight (needs the Apple account) |
 | Design pass 1 — time-of-day theming | ✅ done | palette from local hour |
 | Design pass 2 — richer scene | ✅ done | ridges, celestial body, stars/clouds, cherry branch (the "painterly" vector scene) |
 | Design pass 3 — pixel-art scene | ✅ done | procedural pixel-art day/night: Bayer-dithered sky, pixel sun, **richer moon (glow + shading + craters)**, twinkling stars, drifting clouds, stepped hills, **pixel cherry branch** (the Nature theme) |
@@ -130,7 +130,7 @@ These are choices made during the build that a future session should know:
 
 ## Deployment (in progress)
 
-Backend deploy to **Fly.io** is scaffolded but **not yet deployed**.
+Backend is **deployed and healthy on Fly.io** (`https://strangerwords.fly.dev/healthz` → 200). Remaining deploy work: the custom-domain cert/DNS (`api.strangerwords.us`).
 
 - **Authoritative runbook: [`server/DEPLOY.md`](../server/DEPLOY.md)** — bootstrap, Redis, `fly secrets`, custom hostname `api.strangerwords.us`, and the env vars (`SW_ADDR`, `SW_REDIS_ADDR/PASSWORD/TLS`).
 - Files: `server/Dockerfile` (static binary on alpine, non-root), `server/fly.toml` (app `strangerwords`, region `sjc`, one warm machine, `/healthz` check), `server/.dockerignore`, and CI auto-deploy in `.github/workflows/fly-deploy.yml`.
