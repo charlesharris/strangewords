@@ -1,0 +1,21 @@
+name: Fly Deploy
+# Push-to-deploy the Go backend. The image is built on Fly's remote builder
+# (--remote-only), so this runner only needs flyctl + a deploy token.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/fly-deploy.yml'
+jobs:
+  deploy:
+    name: Deploy app
+    runs-on: ubuntu-latest
+    concurrency: deploy-group # never run two deploys at once
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --remote-only
+        working-directory: ./server # fly.toml + Dockerfile live here
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

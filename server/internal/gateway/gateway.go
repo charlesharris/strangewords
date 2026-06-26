@@ -37,14 +37,14 @@ func New(st *store.Store, mm *matchmaker.Matchmaker, notifier push.Notifier, log
 func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealth)
-	mux.HandleFunc("GET /metrics", s.handleMetrics)
+	mux.Handle("GET /metrics", metrics.Handler())
 	mux.HandleFunc("POST /v1/enter", s.handleEnter)
 	mux.HandleFunc("GET /v1/waiting", s.handleWaiting)
 	mux.HandleFunc("GET /v1/session/{id}", s.handleGetSession)
 	mux.HandleFunc("POST /v1/session/{id}/line", s.handleLine)
 	mux.HandleFunc("POST /v1/session/{id}/leave", s.handleLeave)
 	mux.HandleFunc("POST /v1/session/{id}/dismiss", s.handleDismiss)
-	return mux
+	return metrics.HTTPMiddleware(mux)
 }
 
 // ---- infra handlers ----
@@ -55,11 +55,6 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-}
-
-func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
-	metrics.WriteText(w)
 }
 
 // ---- enter / waiting ----
@@ -91,16 +86,16 @@ func (s *Server) handleEnter(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	metrics.C.Entered.Add(1)
+	metrics.Entered.Inc()
 
 	if res.Session != nil {
-		metrics.C.Matched.Add(1)
+		metrics.Matched.Inc()
 		s.maybePush(r.Context(), res.Session, 0, push.MatchReady) // notify the waiter
 		v := res.Session.ViewFor(token)
 		writeJSON(w, http.StatusOK, enterResponse{ParticipantToken: token, State: "matched", Session: &v})
 		return
 	}
-	metrics.C.Waiting.Add(1)
+	metrics.Waiting.Inc()
 	writeJSON(w, http.StatusOK, enterResponse{ParticipantToken: token, State: "waiting", WaitID: res.Wait.ID})
 }
 
@@ -214,12 +209,12 @@ func (s *Server) handleLine(w http.ResponseWriter, r *http.Request) {
 	sess.Lines = append(sess.Lines, clean)
 	sess.CurrentLine++
 	sess.Participants[idx].LastSeen = now.UnixMilli()
-	metrics.C.LinesSubmitted.Add(1)
+	metrics.LinesSubmitted.Inc()
 
 	if sess.IsComplete() {
 		sess.Status = sessions.StatusComplete
 		sess.CompletedAt = now.UnixMilli()
-		metrics.C.PoemsCompleted.Add(1)
+		metrics.PoemsCompleted.Inc()
 		if err := s.st.SaveSessionTTL(r.Context(), sess, store.RevealTTL); err != nil {
 			s.fail(w, err)
 			return
@@ -361,7 +356,7 @@ func (s *Server) dissolve(ctx context.Context, sess *sessions.Session) {
 		s.log.Warn("dissolve failed", "session", sess.ID, "err", err)
 		return
 	}
-	metrics.C.Dissolved.Add(1)
+	metrics.Dissolved.Inc()
 }
 
 var errGone = errors.New("gone")

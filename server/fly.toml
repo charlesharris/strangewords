@@ -9,6 +9,12 @@ primary_region = "sjc"
   SW_ADDR = ":8080"
   # SW_REDIS_ADDR / SW_REDIS_PASSWORD are set via `fly secrets set` (see runbook).
   # SW_REDIS_TLS = "1"   # only if the Redis endpoint requires TLS (rediss://).
+  # Soft memory ceiling: keep the Go heap under the 256mb VM cap so GC reclaims
+  # before the OOM-killer fires. automaxprocs handles GOMAXPROCS at runtime.
+  GOMEMLIMIT = "220MiB"
+  # pprof/debug: uncomment to enable, then reach it via `fly proxy 6060:6060`.
+  # It is deliberately NOT in [http_service], so it never hits the public router.
+  # SW_DEBUG_ADDR = ":6060"
 
 [http_service]
   internal_port = 8080

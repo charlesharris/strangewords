@@ -101,6 +101,42 @@ func mustJSON(t *testing.T, b []byte, v any) {
 	}
 }
 
+// TestMetricsEndpoint verifies the Prometheus surface is wired end to end: a
+// real match drives the business counters, the RED middleware records the route
+// templates (not concrete ids), and the go-redis hook times commands.
+func TestMetricsEndpoint(t *testing.T) {
+	r := newRig(t)
+	r.match(t) // generates enters, a match, and a fan of Redis commands
+
+	code, body := r.do(t, "GET", "/metrics", "", nil)
+	if code != 200 {
+		t.Fatalf("/metrics: status %d", code)
+	}
+	text := string(body)
+	for _, want := range []string{
+		"sw_entered_total",
+		"sw_matched_total",
+		"sw_http_requests_total{",
+		"sw_http_request_duration_seconds_bucket{",
+		"sw_redis_command_duration_seconds_bucket{",
+		`route="POST /v1/enter"`, // route template, never a concrete session id
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("/metrics missing %q", want)
+		}
+	}
+	// Cardinality guard: no concrete session id should ever land in a label.
+	if strings.Contains(text, "/v1/session/"+sessIDFrom(t, r)) {
+		t.Errorf("/metrics leaked a concrete session id into a label")
+	}
+}
+
+// sessIDFrom returns a freshly matched session id for the cardinality check.
+func sessIDFrom(t *testing.T, r *rig) string {
+	_, _, v := r.match(t)
+	return v.SessionID
+}
+
 // match returns (tokenA waiter idx0, tokenB arriver idx1, B's matched view).
 func (r *rig) match(t *testing.T) (string, string, sessions.View) {
 	t.Helper()

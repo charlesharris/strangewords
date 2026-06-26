@@ -7,12 +7,14 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	_ "net/http/pprof" // registers /debug/pprof on http.DefaultServeMux
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	_ "go.uber.org/automaxprocs" // align GOMAXPROCS to the cgroup CPU quota (Fly fractional vCPU)
 
 	"strangewords/internal/config"
 	"strangewords/internal/gateway"
@@ -55,6 +57,19 @@ func main() {
 			os.Exit(1)
 		}
 	}()
+
+	// Debug server: pprof + a plain heap/goroutine view. Disabled unless
+	// SW_DEBUG_ADDR is set; never add it to fly.toml's http_service, so it
+	// stays off the public router (reach it with `fly proxy 6060:6060`).
+	if cfg.DebugAddr != "" {
+		dbg := &http.Server{Addr: cfg.DebugAddr, Handler: http.DefaultServeMux, ReadHeaderTimeout: 5 * time.Second}
+		go func() {
+			log.Info("debug listening", "addr", cfg.DebugAddr)
+			if err := dbg.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Warn("debug server error", "err", err)
+			}
+		}()
+	}
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)

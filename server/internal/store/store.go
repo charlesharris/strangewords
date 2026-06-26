@@ -13,6 +13,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
+	"strangewords/internal/metrics"
 	"strangewords/internal/sessions"
 )
 
@@ -56,7 +57,10 @@ type Store struct {
 	rdb *redis.Client
 }
 
-func New(rdb *redis.Client) *Store { return &Store{rdb: rdb} }
+func New(rdb *redis.Client) *Store {
+	rdb.AddHook(metrics.RedisHook()) // time every command centrally
+	return &Store{rdb: rdb}
+}
 
 func (s *Store) Ping(ctx context.Context) error { return s.rdb.Ping(ctx).Err() }
 
