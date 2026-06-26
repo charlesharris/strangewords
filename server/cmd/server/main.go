@@ -10,6 +10,7 @@ import (
 	_ "net/http/pprof" // registers /debug/pprof on http.DefaultServeMux
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -24,19 +25,44 @@ import (
 	"strangewords/internal/store"
 )
 
+// redisOptions builds the client options from config. SW_REDIS_ADDR may be
+// either a bare host:port (paired with SW_REDIS_PASSWORD / SW_REDIS_TLS) or a
+// full redis:// or rediss:// URL — the form Fly/Upstash print, which already
+// carries the password and (for rediss) TLS. Accepting the URL verbatim avoids
+// the "too many colons in address" trap of pasting it into a host:port field.
+func redisOptions(cfg config.Config) (*redis.Options, error) {
+	if strings.HasPrefix(cfg.RedisAddr, "redis://") || strings.HasPrefix(cfg.RedisAddr, "rediss://") {
+		opts, err := redis.ParseURL(cfg.RedisAddr)
+		if err != nil {
+			return nil, err
+		}
+		if cfg.RedisPassword != "" {
+			opts.Password = cfg.RedisPassword // an explicit password override wins
+		}
+		return opts, nil
+	}
+	opts := &redis.Options{Addr: cfg.RedisAddr, Password: cfg.RedisPassword}
+	if cfg.RedisTLS {
+		opts.TLSConfig = &tls.Config{}
+	}
+	return opts, nil
+}
+
 func main() {
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	cfg := config.Load()
 
-	redisOpts := &redis.Options{Addr: cfg.RedisAddr, Password: cfg.RedisPassword}
-	if cfg.RedisTLS {
-		redisOpts.TLSConfig = &tls.Config{}
+	redisOpts, err := redisOptions(cfg)
+	if err != nil {
+		log.Error("invalid redis config", "err", err)
+		os.Exit(1)
 	}
 	rdb := redis.NewClient(redisOpts)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := rdb.Ping(ctx).Err(); err != nil {
-		log.Error("cannot reach redis", "addr", cfg.RedisAddr, "err", err)
+		// Log the host:port only — never redisOpts (it carries the password).
+		log.Error("cannot reach redis", "addr", redisOpts.Addr, "err", err)
 		os.Exit(1)
 	}
 
@@ -57,7 +83,7 @@ func main() {
 	srv.StartMaintenance() // rate-limiter idle sweep
 
 	go func() {
-		log.Info("listening", "addr", cfg.Addr, "redis", cfg.RedisAddr)
+		log.Info("listening", "addr", cfg.Addr, "redis", redisOpts.Addr)
 		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Error("server error", "err", err)
 			os.Exit(1)

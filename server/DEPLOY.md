@@ -43,9 +43,9 @@ The server reads these env vars (see `internal/config/config.go`):
 | Var                 | Default            | Notes                                          |
 | ------------------- | ------------------ | ---------------------------------------------- |
 | `SW_ADDR`           | `:8080`            | HTTP listen address                            |
-| `SW_REDIS_ADDR`     | `127.0.0.1:6379`   | Redis `host:port`                              |
-| `SW_REDIS_PASSWORD` | _(empty)_          | Redis auth password                            |
-| `SW_REDIS_TLS`      | _(unset)_          | Set to any value to dial Redis via TLS         |
+| `SW_REDIS_ADDR`     | `127.0.0.1:6379`   | Redis `host:port`, **or** a full `redis://` / `rediss://` URL (the form Fly prints — it's parsed) |
+| `SW_REDIS_PASSWORD` | _(empty)_          | Redis auth password (ignored if the URL already carries one) |
+| `SW_REDIS_TLS`      | _(unset)_          | Set to any value to dial Redis via TLS (or just use a `rediss://` URL) |
 | `SW_RATE_RPS`       | `30`               | Per-IP sustained request rate; `0` disables it |
 | `SW_RATE_BURST`     | `60`               | Per-IP burst depth (token-bucket size)         |
 
@@ -105,9 +105,12 @@ fly apps create strangerwords
 #    redis://default:PASSWORD@fly-xxxx.upstash.io:6379
 fly redis create
 
-# 3. Store the Redis endpoint as app secrets (NOT in git / CI).
-#    Leave SW_REDIS_TLS unset — Fly's private Redis is plaintext.
-fly secrets set SW_REDIS_ADDR=fly-xxxx.upstash.io:6379 SW_REDIS_PASSWORD=PASSWORD
+# 3. Store the Redis endpoint as app secrets (NOT in git / CI). Easiest and
+#    least error-prone: paste the WHOLE redis:// URL — the server parses it.
+fly secrets set SW_REDIS_ADDR='redis://default:PASSWORD@fly-xxxx.upstash.io:6379'
+#    Or split it yourself (note: SW_REDIS_ADDR is host:port ONLY — no redis://
+#    prefix, no password — else the dialer errors "too many colons in address"):
+#    fly secrets set SW_REDIS_ADDR=fly-xxxx.upstash.io:6379 SW_REDIS_PASSWORD=PASSWORD
 
 # 4. First deploy + sanity check.
 fly deploy
