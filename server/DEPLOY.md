@@ -14,6 +14,27 @@ so the backend can be re-pointed via DNS without an App Store update.
 > and the iOS bundle id (`com.strangewords.app`) keep the no-"r" spelling on
 > purpose — they're identifiers, never user-visible, and renaming them is churn.
 
+## Why Fly.io
+
+The choice was pragmatic, not dogmatic — `plan.v1.md` left the host `[TUNABLE]`
+(Fly.io / Render / small VM), and Fly fits this app's shape:
+
+- **Shape match.** One stateless Go binary + ephemeral Redis is Fly's sweet
+  spot: a Dockerfile becomes a machine, with managed Redis (`fly redis`) on the
+  same private network. No Postgres needed — nothing is persisted by design.
+- **Warm but cheap.** `min_machines_running = 1` keeps one `shared-cpu-1x`/256mb
+  machine warm so the iOS polling loop never hits a cold start mid-poem.
+- **Region pinning** (`sjc`) puts it near early users; more regions is config.
+- **DNS-repointable hostname + free TLS**, so the backend can move without an App
+  Store update — the property the `api.strangerwords.us` indirection relies on.
+- **Private networking** is already used for pprof (`SW_DEBUG_ADDR` via `fly proxy`).
+
+Reconsider if Upstash Redis reliability bites (a blip only drops in-flight
+poems, which the design tolerates) or multi-region / own-VM control is wanted.
+The server is plain Docker + `SW_*` env config, so switching hosts is an
+afternoon — the host-specific footprint is just `fly.toml`, this file, and the
+CI workflow.
+
 ## Configuration
 
 The server reads three env vars (see `internal/config/config.go`):

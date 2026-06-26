@@ -1,6 +1,6 @@
-# Fly.io config for the Strangewords backend.
+# Fly.io config for the Strangerwords backend.
 # Region: change primary_region to match where you create the Redis db.
-app = "strangewords"
+app = "strangerwords"
 primary_region = "sjc"
 
 [build]
