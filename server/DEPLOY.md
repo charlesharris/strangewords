@@ -11,15 +11,33 @@ so the backend can be re-pointed via DNS without an App Store update.
 
 The server reads three env vars (see `internal/config/config.go`):
 
-| Var                 | Default            | Notes                                  |
-| ------------------- | ------------------ | -------------------------------------- |
-| `SW_ADDR`           | `:8080`            | HTTP listen address                    |
-| `SW_REDIS_ADDR`     | `127.0.0.1:6379`   | Redis `host:port`                      |
-| `SW_REDIS_PASSWORD` | _(empty)_          | Redis auth password                    |
-| `SW_REDIS_TLS`      | _(unset)_          | Set to any value to dial Redis via TLS |
+| Var                 | Default            | Notes                                          |
+| ------------------- | ------------------ | ---------------------------------------------- |
+| `SW_ADDR`           | `:8080`            | HTTP listen address                            |
+| `SW_REDIS_ADDR`     | `127.0.0.1:6379`   | Redis `host:port`                              |
+| `SW_REDIS_PASSWORD` | _(empty)_          | Redis auth password                            |
+| `SW_REDIS_TLS`      | _(unset)_          | Set to any value to dial Redis via TLS         |
+| `SW_RATE_RPS`       | `30`               | Per-IP sustained request rate; `0` disables it |
+| `SW_RATE_BURST`     | `60`               | Per-IP burst depth (token-bucket size)         |
 
 Redis holds only ephemeral, TTL-bounded state — a restart drops in-progress
 poems, which is acceptable. No persistence or durability is required.
+
+### Hardening
+
+The HTTP surface defends itself with a few always-on guards (no config needed):
+
+- **Request body cap** — bodies over 16 KiB are rejected before they're read,
+  so a single large POST can't exhaust memory.
+- **Server timeouts** — read (10s), write (15s), and idle (60s) timeouts, plus a
+  5s header timeout, reap slow or stuck connections.
+- **Panic recovery** — a handler panic becomes a logged 500 (and bumps
+  `sw_panics_recovered_total`) instead of dropping the connection.
+- **Per-IP rate limiting** — a token bucket (`SW_RATE_RPS`/`SW_RATE_BURST`) keyed
+  on the client IP. Behind Fly the real IP comes from the `Fly-Client-IP` header.
+  `/healthz` and `/metrics` are exempt. Limits are loose because mobile carriers
+  (CGNAT) can share one IP across many real users; rejections increment
+  `sw_rate_limited_total`. Set `SW_RATE_RPS=0` to disable.
 
 ## One-time bootstrap (run once, from your laptop)
 
@@ -96,6 +114,8 @@ The server exposes Prometheus metrics at `GET /metrics` (same port as the API):
 | `sw_http_requests_in_flight`        | gauge     | Concurrency right now                              |
 | `sw_redis_command_duration_seconds` | histogram | Per-command Redis latency (the usual bottleneck)   |
 | `sw_redis_command_errors_total`     | counter   | Real Redis errors (cache misses excluded)          |
+| `sw_rate_limited_total`             | counter   | Requests rejected by the per-IP limiter            |
+| `sw_panics_recovered_total`         | counter   | Handler panics caught by the recovery middleware   |
 | `sw_entered/matched/waiting/...`    | counters  | Business funnel                                    |
 
 Routes are templates (`POST /v1/session/{id}/line`), never concrete ids, so

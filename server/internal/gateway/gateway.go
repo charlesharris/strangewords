@@ -21,19 +21,30 @@ import (
 )
 
 type Server struct {
-	st   *store.Store
-	mm   *matchmaker.Matchmaker
-	push push.Notifier
-	log  *slog.Logger
-	cfg  config.Config
-	now  func() time.Time
+	st      *store.Store
+	mm      *matchmaker.Matchmaker
+	push    push.Notifier
+	log     *slog.Logger
+	cfg     config.Config
+	now     func() time.Time
+	limiter *rateLimiter // nil when rate limiting is disabled (RateRPS <= 0)
 }
 
 func New(st *store.Store, mm *matchmaker.Matchmaker, notifier push.Notifier, log *slog.Logger, cfg config.Config) *Server {
-	return &Server{st: st, mm: mm, push: notifier, log: log, cfg: cfg, now: time.Now}
+	s := &Server{st: st, mm: mm, push: notifier, log: log, cfg: cfg, now: time.Now}
+	if cfg.RateRPS > 0 {
+		s.limiter = newRateLimiter(cfg.RateRPS, cfg.RateBurst)
+	}
+	return s
 }
 
 // Routes builds the HTTP handler. Method+path patterns require Go 1.22+.
+//
+// Middleware order (outermost first): metrics → recover → rate-limit → body
+// cap → mux. Metrics is outermost so it records the final status of every
+// request, including a 429 or a panic that recover turns into a 500; recover
+// sits just inside so a handler panic becomes that counted 500; the body cap is
+// innermost, right before the handlers read.
 func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealth)
@@ -44,7 +55,22 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/session/{id}/line", s.handleLine)
 	mux.HandleFunc("POST /v1/session/{id}/leave", s.handleLeave)
 	mux.HandleFunc("POST /v1/session/{id}/dismiss", s.handleDismiss)
-	return metrics.HTTPMiddleware(mux)
+
+	var h http.Handler = limitBody(mux)
+	if s.limiter != nil {
+		h = s.limiter.middleware(h)
+	}
+	h = recoverPanic(s.log, h)
+	return metrics.HTTPMiddleware(h)
+}
+
+// StartMaintenance launches background upkeep (the rate-limiter idle sweep). It
+// runs for the process lifetime; call once after New. No-op when rate limiting
+// is disabled.
+func (s *Server) StartMaintenance() {
+	if s.limiter != nil {
+		go s.limiter.runJanitor(time.Minute, 10*time.Minute)
+	}
 }
 
 // ---- infra handlers ----

@@ -47,8 +47,12 @@ func main() {
 	httpSrv := &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           srv.Routes(),
-		ReadHeaderTimeout: 5 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,  // slow-header (Slowloris) guard
+		ReadTimeout:       10 * time.Second, // whole request, incl. a slow body
+		WriteTimeout:      15 * time.Second, // comfortably above any handler
+		IdleTimeout:       60 * time.Second, // reap idle keep-alive connections
 	}
+	srv.StartMaintenance() // rate-limiter idle sweep
 
 	go func() {
 		log.Info("listening", "addr", cfg.Addr, "redis", cfg.RedisAddr)

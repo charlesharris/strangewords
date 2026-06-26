@@ -30,6 +30,13 @@ var (
 	Dissolved      = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_dissolved_total", Help: "Sessions torn down."})
 )
 
+// ---- hardening counters ----
+
+var (
+	PanicsRecovered = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_panics_recovered_total", Help: "Handler panics caught by the recovery middleware."})
+	RateLimited     = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_rate_limited_total", Help: "Requests rejected by the per-IP rate limiter."})
+)
+
 // ---- RED: HTTP ----
 
 var (

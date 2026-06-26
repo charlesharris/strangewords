@@ -15,6 +15,10 @@ primary_region = "sjc"
   # pprof/debug: uncomment to enable, then reach it via `fly proxy 6060:6060`.
   # It is deliberately NOT in [http_service], so it never hits the public router.
   # SW_DEBUG_ADDR = ":6060"
+  # Per-IP rate limit (token bucket). Defaults (30 rps / 60 burst) are loose
+  # since carrier NAT shares IPs; tune or set SW_RATE_RPS = "0" to disable.
+  # SW_RATE_RPS = "30"
+  # SW_RATE_BURST = "60"
 
 [http_service]
   internal_port = 8080
