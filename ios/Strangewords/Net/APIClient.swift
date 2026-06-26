@@ -15,9 +15,20 @@ enum APIError: Error, Equatable {
 actor APIClient: Backend {
     static let shared = APIClient()
 
-    /// Base URL of the Go backend. The simulator shares the host's network, so
-    /// 127.0.0.1 reaches a server running on the dev machine.
-    private let base = URL(string: "http://127.0.0.1:8080")!
+    /// Base URL of the Go backend.
+    ///
+    /// Device and Release builds talk to the stable custom hostname, so the
+    /// backend can be re-pointed via DNS without an App Store update. The
+    /// simulator dev loop overrides it with `SW_API_BASE` (run.sh sets this to
+    /// the local server for --solo/--two); the override never ships, since the
+    /// environment is only populated by simctl during a dev launch.
+    private let base: URL = {
+        if let override = ProcessInfo.processInfo.environment["SW_API_BASE"],
+           let u = URL(string: override) {
+            return u
+        }
+        return URL(string: "https://api.strangerwords.us")!
+    }()
     private let session: URLSession = {
         let cfg = URLSessionConfiguration.ephemeral
         cfg.timeoutIntervalForRequest = 15

@@ -41,6 +41,9 @@ for a in "$@"; do
   esac
 done
 [[ "$MOCK" == "1" ]] && export SIMCTL_CHILD_SW_LOCAL_MOCK=1
+# Non-mock sims hit a real backend: point the app at the local server. Without
+# this the app would default to the production host (api.strangerwords.us).
+[[ "$MOCK" != "1" ]] && export SIMCTL_CHILD_SW_API_BASE="$BASE"
 [[ -n "${SIMCTL_CHILD_SW_FORCE_TOD:-}" ]] && echo "▸ Forcing theme: $SIMCTL_CHILD_SW_FORCE_TOD"
 [[ "$MOCK" == "1" ]] && echo "▸ Mock mode: on-device stranger, no backend needed (dev toggle on)."
 
