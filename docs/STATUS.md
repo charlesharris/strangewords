@@ -1,6 +1,6 @@
 # Project Status — pick up here
 
-> **Snapshot:** 2026-06-17
+> **Snapshot:** 2026-06-26
 > **Branch:** `main`
 > **One-liner:** Anonymous, ephemeral iOS app for writing a 3-line poem with a stranger, then letting it go.
 
@@ -14,7 +14,7 @@ The **core experience works end to end**: a person enters, gets matched, takes t
 
 The **feel pass is substantially done**: bundled fonts (Fraunces + Inter), a procedural pixel-art scene, a full-screen dissolution, per-state dusk deepening, haptics, a shared button style, and a randomized splash. The look is now a **theme system** — three themes ship (**Nature**, **Sci-Fi**, **Fantasy**), each bundling its own palette-per-time-of-day, scene, and dissolution; the time of day and theme are both swappable from dev chips. The app's user-facing name is **"Stranger Words"** (the repo/target stay `strangewords`).
 
-**In progress:** Fly.io deployment scaffolding exists (Dockerfile, `fly.toml`, Redis TLS/password support) but hasn't been deployed yet — see "Deployment" below.
+**In progress:** Fly.io deployment scaffolding exists (Dockerfile, `fly.toml`, Redis TLS/password support) but hasn't been deployed yet — see "Deployment" below. The backend is now **deploy-hardened**: real Prometheus observability (RED HTTP + Redis-command timing + business counters), pprof behind a private addr, `GOMEMLIMIT`/automaxprocs, and request-edge defenses (16 KiB body cap, full server timeouts, panic→500 recovery, per-IP rate limiting). All committed; the only thing left is to actually run `fly deploy` (needs a Fly account + DNS).
 
 **Not yet built:** push notifications (the async/durable-connection headline — blocked on an Apple account), safety/moderation, Dynamic Type audit, final copy, and shipping to TestFlight.
 
@@ -43,8 +43,8 @@ See `README.md` for the full set of run/test options.
 | 2 — APNs push | ⛔ not started | **blocked: needs Apple Developer account + APNs key.** `push.Noop` is wired in its place |
 | 3 — iOS core loop | ✅ working | live-verified via robot; the *async-by-push* half waits on Phase 2 |
 | 4 — Pacing / motion / a11y / copy | 🟡 mostly | Reduce-Motion-aware scenes, **bundled fonts (Fraunces + Inter)**, **softened syllable nudge**, **per-theme dissolution (full-screen)**, **per-state dusk deepening**, **haptics**, **shared button style**, **randomized splash**, basic VoiceOver labels. **Missing:** Dynamic Type audit, smooth theme transitions across an hour boundary, final copy pass |
-| 5 — Safety rails | ⛔ not started | rate limiting, abusive-content filter, reporting + moderation store, EULA |
-| 6 — Observability + deploy → TestFlight | 🟡 started | basic `/metrics` counters exist; **Fly.io deploy scaffolding added (Dockerfile, `fly.toml`, Redis TLS) — not yet deployed**; TestFlight still needs the Apple account |
+| 5 — Safety rails | 🟡 started | **per-IP rate limiting done** (token bucket on `Fly-Client-IP`); still missing: abusive-content filter, reporting + moderation store, EULA |
+| 6 — Observability + deploy → TestFlight | 🟡 started | **Prometheus `/metrics` (RED HTTP + Redis timing + business counters), pprof, `GOMEMLIMIT`/automaxprocs — done & committed**; **Fly.io deploy scaffolding (Dockerfile, `fly.toml`, Redis TLS, CI) in place — not yet deployed**; TestFlight still needs the Apple account |
 | Design pass 1 — time-of-day theming | ✅ done | palette from local hour |
 | Design pass 2 — richer scene | ✅ done | ridges, celestial body, stars/clouds, cherry branch (the "painterly" vector scene) |
 | Design pass 3 — pixel-art scene | ✅ done | procedural pixel-art day/night: Bayer-dithered sky, pixel sun, **richer moon (glow + shading + craters)**, twinkling stars, drifting clouds, stepped hills, **pixel cherry branch** (the Nature theme) |
@@ -135,7 +135,7 @@ Backend deploy to **Fly.io** is scaffolded but **not yet deployed**.
 - Files: `server/Dockerfile` (static binary on alpine, non-root), `server/fly.toml` (app `strangewords`, region `sjc`, one warm machine, `/healthz` check), `server/.dockerignore`, and CI auto-deploy in `.github/workflows/fly-deploy.yml`.
 - **Still TODO:** actually run the bootstrap + first `fly deploy`; then **repoint the iOS app** — `APIClient.base` is still `http://127.0.0.1:8080` and should become `https://api.strangewords.app` (and the dev-only local-HTTP ATS exception in `project.yml` can go for production).
 
-> Tracking notes: `server/DEPLOY.md` and `.github/workflows/fly-deploy.yml` are **untracked** as of this snapshot (not yet committed). The `Dockerfile`/`fly.toml`/`.dockerignore` + Redis-TLS config landed bundled into commit `36582c7` (an accidental `git add -A`); content is correct and tests pass, history left as-is.
+> Tracking notes: the full observability + deploy scaffolding (`DEPLOY.md`, `.github/workflows/fly-deploy.yml`, Prometheus `/metrics`, pprof, `GOMEMLIMIT`/automaxprocs) is now **committed** (`a5c2b5a`), as is the request-edge **hardening** — 16 KiB body cap, full server timeouts, panic→500 recovery, and per-IP rate limiting in `server/internal/gateway/middleware.go` (`5b51281`). flyctl is **not installed locally**; the next deploy step is `brew install flyctl` → `fly auth login` → the bootstrap in `DEPLOY.md`.
 
 ---
 
