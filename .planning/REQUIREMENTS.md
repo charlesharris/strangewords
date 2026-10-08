@@ -79,26 +79,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HARN-01 | — | Pending |
-| HARN-02 | — | Pending |
-| HARN-03 | — | Pending |
-| HARN-04 | — | Pending |
-| HARN-05 | — | Pending |
-| IOST-01 | — | Pending |
-| IOST-02 | — | Pending |
-| IOST-03 | — | Pending |
-| IOST-04 | — | Pending |
-| IOST-05 | — | Pending |
-| E2E-01 | — | Pending |
-| E2E-02 | — | Pending |
-| CONT-01 | — | Pending |
-| FIX-01 | — | Pending |
+| HARN-01 | Phase 1 | Pending |
+| HARN-02 | Phase 1 | Pending |
+| HARN-03 | Phase 1 | Pending |
+| IOST-01 | Phase 2 | Pending |
+| IOST-02 | Phase 2 | Pending |
+| IOST-03 | Phase 2 | Pending |
+| IOST-04 | Phase 2 | Pending |
+| IOST-05 | Phase 2 | Pending |
+| E2E-01 | Phase 3 | Pending |
+| E2E-02 | Phase 3 | Pending |
+| CONT-01 | Phase 3 | Pending |
+| HARN-04 | Phase 4 | Pending |
+| HARN-05 | Phase 4 | Pending |
+| FIX-01 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 14 total
-- Mapped to phases: 0
-- Unmapped: 14 ⚠️ (roadmap pending)
+- Mapped to phases: 14
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-10-08*
-*Last updated: 2026-10-08 after initial definition*
+*Last updated: 2026-10-08 after roadmap creation (traceability mapped)*
