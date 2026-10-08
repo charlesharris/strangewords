@@ -22,6 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 1: Clean Tree & Trustworthy iOS Harness
+
 **Goal**: The developer starts from a deliberate, reconciled tree where every existing check passes, and can run an iOS test suite headlessly with a pass/fail verdict that cannot report a false green
 **Mode:** mvp
 **Depends on**: Nothing (first phase)
@@ -32,14 +33,19 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. After a fresh `xcodegen generate`, the scheme has a test action and a hosted unit-test target, and a trivial test runs headlessly from the CLI and passes
   4. The CLI test command exits non-zero when a test fails AND when zero tests execute (e.g. a mistyped `-only-testing` filter); the verdict comes from the result bundle, not from xcodebuild's banner
   5. While tests run, the host app launches in local-mock mode, so no test can reach the production server through a leftover token
+
 **Notes**: Research flag: before relying on scheme test env / `TEST_RUNNER_` forwarding to isolate the host app, confirm it with a one-line probe. Also confirm the test bundle ID (`com.strangerwords.us.tests`) against the bundle-ID change in the working tree.
 **Plans**: 2 plans
 
 Plans:
+**Wave 1**
 - [ ] 01-01-PLAN.md — Reconcile the dirty tree in two concern-split commits, accept gofmt output in a separate formatting-only commit, and prove every existing check green, including an empty `gofmt -l server/` and a fresh-clone build (HARN-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01-02-PLAN.md — Hosted StrangewordsTests target, isolated scheme test action, `scripts/test-ios.sh` result-bundle verdict, and a re-runnable self-check proving it cannot report a false green (HARN-02, HARN-03)
 
 ### Phase 2: iOS Client Logic Suites
+
 **Goal**: The on-device logic (syllable counting, keepsake naming, the mock backend, and the full AppModel arc) is pinned by fast, deterministic unit tests that catch regressions without a human at a simulator
 **Mode:** mvp
 **Depends on**: Phase 1
@@ -50,10 +56,12 @@ Plans:
   3. `LocalBackend` tests pass for pairing, round-robin turn order, line validation/rejection, idempotent resubmit, and teardown, each mirroring a named server rule
   4. `AppModel` tests drive the full arc (threshold, waiting, compose, reveal, dissolve, dissolved) plus submit errors, partner-gone, begin-again, and leaving mid-poll, where a poll response that lands after leaving does not bring the session back
   5. The whole iOS suite finishes in seconds with no real-time sleeps, and no test leaves a token behind in the app's shared `UserDefaults` container
+
 **Notes**: Expected finding: the late-poll race (poll loops call `apply()` after an `await` without checking `Task.isCancelled`). Expose it with a gated fake and fix it here under fix-as-we-go. Use `@Suite(.serialized)` for suites that share state.
 **Plans**: TBD
 
 ### Phase 3: Server End-to-End & Wire Contract
+
 **Goal**: An unattended run proves that the real server takes two strangers from match to dissolution and leaves nothing behind, and that the iOS models decode what the server actually sends
 **Mode:** mvp
 **Depends on**: Phase 1
@@ -63,10 +71,12 @@ Plans:
   2. One command runs the real server on an ephemeral port against in-process miniredis, drives a scripted client and the robot poet through match, turns, completion, and dissolution, and exits pass/fail within a deadline, with no human, no simulator, and no shared Redis touched
   3. After dissolution, the run asserts that the session is gone (410) for both tokens, that zero `sw:*` keys remain (including the matched waiter's wait record), and that the dissolved metric went up
   4. Wire-format JSON fixtures captured from the Go server (enter matched/waiting, waiting, active and complete session, and 409/410/422 error bodies) are committed, Swift tests decode every one into the iOS models, and renaming a field on either side fails a test without a running server
+
 **Notes**: Independent of Phase 2 (needs only the Phase 1 test target), so it can run in parallel. Expected finding: the `WaitEntry` leak in `Store.DeleteSession` will fail the zero-keys assertion. Triage it as a real anonymity bug, not an assertion to weaken. Research flags: miniredis fidelity vs real Redis, and the design of the bot's `-json` result contract. The existing `live_test.sh` scripts can't be reused (they kill port-holders, `FLUSHALL` shared Redis, and never exit).
 **Plans**: TBD
 
 ### Phase 4: One-Command Verify & Baseline
+
 **Goal**: One command answers "is the core experience still working?", and its blessed answer is committed as the GSD baseline that future milestones verify against
 **Mode:** mvp
 **Depends on**: Phase 2, Phase 3
@@ -76,6 +86,7 @@ Plans:
   2. Every failure found during the milestone is either fixed with a regression test or listed as an expected failure with a documented reason, and no assertion was weakened, skipped, or commented out without a cited reason
   3. A dated baseline record committed under `.planning/` lists the commit hash, tool versions (Xcode, Swift, XcodeGen, Go, simulator runtime), per-suite pass counts, and an explicit not-verified list
   4. A fresh full verify run on the baseline commit is green, and its per-suite counts match the baseline record
+
 **Notes**: Run artifacts go under a gitignored `build/verify/<timestamp>/`. Only the blessed summary is committed. The not-verified list should name at least: production/Fly.io, push, manual feel / Dynamic Type, and iOS 17.x runtime (only the 18.6 simulator is installed).
 **Plans**: TBD
 
