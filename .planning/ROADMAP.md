@@ -33,7 +33,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. The CLI test command exits non-zero when a test fails AND when zero tests execute (e.g. a mistyped `-only-testing` filter); the verdict comes from the result bundle, not from xcodebuild's banner
   5. While tests run, the host app launches in local-mock mode, so no test can reach the production server through a leftover token
 **Notes**: Research flag: before relying on scheme test env / `TEST_RUNNER_` forwarding to isolate the host app, confirm it with a one-line probe. Also confirm the test bundle ID (`com.strangerwords.us.tests`) against the bundle-ID change in the working tree.
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Reconcile the dirty tree in two concern-split commits and prove every existing check green, including a fresh-clone build (HARN-01)
+- [ ] 01-02-PLAN.md — Hosted StrangewordsTests target, isolated scheme test action, `scripts/test-ios.sh` result-bundle verdict, and a re-runnable self-check proving it cannot report a false green (HARN-02, HARN-03)
 
 ### Phase 2: iOS Client Logic Suites
 **Goal**: The on-device logic (syllable counting, keepsake naming, the mock backend, and the full AppModel arc) is pinned by fast, deterministic unit tests that catch regressions without a human at a simulator
@@ -82,7 +86,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4. Phases 2 and 3 depend only
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Clean Tree & Trustworthy iOS Harness | 0/TBD | Not started | - |
+| 1. Clean Tree & Trustworthy iOS Harness | 0/2 | Planned | - |
 | 2. iOS Client Logic Suites | 0/TBD | Not started | - |
 | 3. Server End-to-End & Wire Contract | 0/TBD | Not started | - |
 | 4. One-Command Verify & Baseline | 0/TBD | Not started | - |
