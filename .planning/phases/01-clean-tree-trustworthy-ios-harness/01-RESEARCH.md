@@ -428,15 +428,26 @@ Use a throwaway `-derivedDataPath` (e.g. `build/derived/ios-build`) rather than 
 | A5 | Behavior on Xcode 26.x matches 16.4 | Standard Stack | The machine has 16.4 only; re-verify on upgrade. |
 | A6 | Adding `SW_API_BASE=http://127.0.0.1:9` to the test env has no side effect on hosted tests | Code Examples A | Remove the line; `SW_LOCAL_MOCK` alone is the verified mechanism. |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+All three were resolved at planning time. The adopted answer is recorded inline under each one.
 
 1. **Does the developer want the `SW_API_BASE` dead-address env line?**
    - Known: `SW_LOCAL_MOCK=1` alone is verified and sufficient for `AppModel`; the dead base only protects code paths that construct `APIClient` directly (none in Phase 1).
    - Recommendation: include it (one line, defense in depth, PITFALLS #2); drop if the planner prefers strictly verified config.
+   - **RESOLVED: include it.** Plan 01-02 Task 1 (step B) adds `SW_API_BASE=http://127.0.0.1:9` to the scheme's test-action env, next to `SW_LOCAL_MOCK=1`. `HostIsolationTests.hostRunsInLocalMockMode()` (01-02 Task 2) asserts both values. A6 counts as proven when the default run passes with the line present. Fallback, kept from A6: if it ever causes a side effect, remove the line, because `SW_LOCAL_MOCK` alone is the verified mechanism.
 2. **Shutdown policy when the simulator was already booted.**
    - Known: D-07 says shutdown after; the prototype shuts down only if the script booted it, to avoid killing a `run.sh` session on the same device.
    - Recommendation: keep the "only if we booted it" rule and state it in the script header; it satisfies D-07's intent (no stray booted sim after a headless run).
+   - **RESOLVED: shut down unconditionally, per locked decision D-07. The recommendation above is NOT adopted.** CONTEXT D-07 reads "`simctl shutdown` after", with no only-if-we-booted-it qualifier, and locked decisions are not re-litigated at planning time. `scripts/test-ios.sh` (01-02 Task 1, step D) installs an EXIT trap that shuts down the pinned UDID, and only that UDID, even if it was already booted. Two consequences:
+     - Ending a `run.sh` session on the same iPhone 16 is an accepted cost (threat T-01-09). The script header documents it.
+     - Self-check case 1 (01-02 Task 2) pre-boots the simulator and proves it is shut down afterwards.
+
+     The prototype's `BOOTED_BY_US` guard in Code Examples B is therefore dropped when the prototype is lifted.
 3. **iOS 17 runtime not installed** (`iOS 18.6` only [VERIFIED: `simctl list runtimes`]). Accepted gap per CONTEXT; Phase 4 not-verified list.
+   - **RESOLVED: accepted gap, and no runtime is installed in Phase 1.** Tests run on the installed iOS 18.6 runtime with the simulator pinned by name only (D-06). The 17.0 deployment target goes untested, and the gap is recorded in two places:
+     - the "Not verified (carry to Phase 4)" list in the 01-02 SUMMARY (01-02 Task 1, step E)
+     - Phase 4's not-verified list (the ROADMAP Phase 4 notes name the iOS 17.x runtime)
 
 ## Environment Availability
 
