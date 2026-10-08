@@ -37,6 +37,9 @@ The developer starts from a deliberate, reconciled tree where every existing che
 - **D-11:** Verdict comes from the result bundle via `xcresulttool` (+ `jq`), never from xcodebuild's banner or exit code alone: non-zero exit on test failure AND on zero-tests-executed (`totalTestCount > 0` and `result == "Passed"` required).
 - **D-12:** The test host app must run isolated: scheme test action sets `SW_LOCAL_MOCK=1` so no test can reach production through a leftover token. Probe `TEST_RUNNER_` env forwarding / scheme test-env mechanics with a one-line check before relying on them (roadmap research flag).
 
+### Formatting (decided by the user during plan revision, 2026-10-08)
+- **D-13:** Format NOW. The four server files gofmt already flags (`server/internal/gateway/gateway_test.go`, `server/internal/sessions/session.go`, `server/internal/sessions/validate.go`, `server/internal/store/store.go`) get `gofmt -w` in Phase 1, in their own formatting-only commit, separate from the two D-02 reconciliation commits. The hand-aligned var/const blocks get realigned, and that is accepted per CLAUDE.md ("accept gofmt's output"). The phase goal "every existing check passes" includes `gofmt -l server/` printing nothing at phase end. This supersedes the earlier plan revision's deferral of these files to Phase 4 (FIX-01). — **Reversibility:** reversible — whitespace-only, proven by an empty `git diff -w`.
+
 ### Claude's Discretion
 - Test target naming and its bundle ID (expected `com.strangerwords.*` per the new `bundleIdPrefix`; confirm what XcodeGen generates, roadmap mentions `com.strangerwords.us.tests`).
 - Exact `scripts/test-ios.sh` flag surface (e.g. `-only-testing` passthrough), retry mechanics, and summary format.

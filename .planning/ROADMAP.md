@@ -36,7 +36,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Reconcile the dirty tree in two concern-split commits and prove every existing check green, including a fresh-clone build (HARN-01)
+- [ ] 01-01-PLAN.md — Reconcile the dirty tree in two concern-split commits, accept gofmt output in a separate formatting-only commit, and prove every existing check green, including an empty `gofmt -l server/` and a fresh-clone build (HARN-01)
 - [ ] 01-02-PLAN.md — Hosted StrangewordsTests target, isolated scheme test action, `scripts/test-ios.sh` result-bundle verdict, and a re-runnable self-check proving it cannot report a false green (HARN-02, HARN-03)
 
 ### Phase 2: iOS Client Logic Suites
