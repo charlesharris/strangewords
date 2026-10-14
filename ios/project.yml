@@ -52,6 +52,20 @@ targets:
           APP_ATTEST_ENVIRONMENT: development
         Release:
           APP_ATTEST_ENVIRONMENT: production
+  # Hosted unit tests (Swift Testing). The test bundle is injected into the app
+  # process, so `@testable import Strangewords` works. The app keeps
+  # com.strangerwords.us; only the test bundle gets the .tests suffix.
+  StrangewordsTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - StrangewordsTests
+    dependencies:
+      - target: Strangewords
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.strangerwords.us.tests
 # Scheme for launching from Xcode (⌘R), including on a physical device. These
 # environment variables apply ONLY to Xcode's Run action — not to `run.sh`
 # (which builds then installs via simctl) nor to archived/TestFlight builds — so
@@ -62,6 +76,21 @@ schemes:
     build:
       targets:
         Strangewords: all
+    # The test action sets its own environment on purpose. Without it XcodeGen
+    # emits shouldUseLaunchSchemeArgsEnv = YES and the tests silently inherit the
+    # Run action's env (SW_DEV=1), so host isolation would hold only by accident.
+    # SW_LOCAL_MOCK=1 makes AppModel.init pick LocalBackend and clear any token;
+    # SW_API_BASE points at a dead local port so an accidental APIClient use fails
+    # fast instead of reaching the production API.
+    test:
+      config: Debug
+      targets:
+        - StrangewordsTests
+      environmentVariables:
+        - variable: SW_LOCAL_MOCK
+          value: "1"
+        - variable: SW_API_BASE
+          value: "http://127.0.0.1:9"
     run:
       config: Debug
       environmentVariables:
