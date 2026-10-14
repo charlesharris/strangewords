@@ -14,7 +14,7 @@ This milestone ships no features. It turns the claims in `docs/STATUS.md` into r
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Clean Tree & Trustworthy iOS Harness** - Reconcile the working tree, get all existing checks green, and prove a headless iOS test run whose verdict can't lie
+- [x] **Phase 1: Clean Tree & Trustworthy iOS Harness** - Reconcile the working tree, get all existing checks green, and prove a headless iOS test run whose verdict can't lie (completed 2026-10-14)
 - [ ] **Phase 2: iOS Client Logic Suites** - Add minimal test seams and pin Syllables, PoemNaming, LocalBackend, and the AppModel arc with fast, deterministic tests
 - [ ] **Phase 3: Server End-to-End & Wire Contract** - Prove match through dissolution against the real server with zero keys left behind, and decode real server JSON in Swift
 - [ ] **Phase 4: One-Command Verify & Baseline** - Wrap every stage in one command, close the fix ledger, and commit the dated baseline evidence
@@ -35,7 +35,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. While tests run, the host app launches in local-mock mode, so no test can reach the production server through a leftover token
 
 **Notes**: Research flag: before relying on scheme test env / `TEST_RUNNER_` forwarding to isolate the host app, confirm it with a one-line probe. Also confirm the test bundle ID (`com.strangerwords.us.tests`) against the bundle-ID change in the working tree.
-**Plans**: 2/2 plans executed
+**Plans**: 2/2 plans complete
 
 Plans:
 **Wave 1**
@@ -97,7 +97,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4. Phases 2 and 3 depend only
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Clean Tree & Trustworthy iOS Harness | 2/2 | In Progress | - |
+| 1. Clean Tree & Trustworthy iOS Harness | 2/2 | Complete    | 2026-10-14 |
 | 2. iOS Client Logic Suites | 0/TBD | Not started | - |
 | 3. Server End-to-End & Wire Contract | 0/TBD | Not started | - |
 | 4. One-Command Verify & Baseline | 0/TBD | Not started | - |
