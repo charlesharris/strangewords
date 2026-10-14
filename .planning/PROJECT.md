@@ -25,13 +25,13 @@ Inferred from the existing codebase (`.planning/codebase/`, `docs/STATUS.md`); l
 - ✓ Deploy-hardened backend live on Fly.io: Prometheus metrics, rate limiting, body cap, timeouts, panic recovery, healthz — existing
 - ✓ Theme system (Nature / Sci-Fi / Fantasy), per-theme dissolutions, time-of-day palettes, haptics, bundled fonts, keepsake naming (`PoemNaming`), syllable hints — existing
 - ✓ Mock backend (`LocalBackend`) replicating server semantics for the one-simulator dev loop — existing
+- ✓ All existing automated checks run clean: `go test ./...`, backend build, iOS build (XcodeGen + xcodebuild), `gofmt -l server/` empty — Phase 1
+- ✓ iOS test target wired into the XcodeGen project (`project.yml`) and runnable headlessly from the command line: hosted `StrangewordsTests` + `scripts/test-ios.sh` (xcresult-derived verdict, zero-tests guard, six-path self-check) — Phase 1
 
 ### Active
 
-- [ ] All existing automated checks run clean: `go test ./...`, backend build, iOS build (XcodeGen + xcodebuild)
 - [ ] End-to-end automated verification: scripted session via the robot poet proves match → turns → completion → dissolution against a locally running server
 - [ ] iOS unit test suite exists and passes: `AppModel` state machine, `LocalBackend` semantics, `Syllables`, `PoemNaming` determinism
-- [ ] iOS test target wired into the XcodeGen project (`project.yml`) and runnable headlessly from the command line
 - [ ] Anything found broken or drifted during verification is fixed within this milestone (fix-as-we-go)
 - [ ] Verified state captured as the GSD baseline: requirements traceability + verification evidence recorded in `.planning/`
 
@@ -68,6 +68,9 @@ Inferred from the existing codebase (`.planning/codebase/`, `docs/STATUS.md`); l
 | Verification depth: automated checks only | Repeatable proof first; manual feel pass and prod checks deferred | — Pending |
 | Fix-as-we-go on failures | Baseline should end clean, not just measured | — Pending |
 | Add a real iOS unit test suite (not just smoke tests) | iOS is the untested half; baseline isn't trustworthy without it | — Pending |
+| Test verdict comes only from the xcresult summary, never xcodebuild's exit/banner | xcodebuild prints TEST SUCCEEDED on zero-test runs; a false green defeats the baseline | ✓ Good — proven by six-path self-check (Phase 1) |
+| Commits allowed directly on `main` (`git.allow_default_branch_commits: true`) | `branching_strategy: none` is the project workflow; user authorized at the Phase 1 gate | ✓ Good |
+| Cold-boot retry path accepted as unverified, carried to Phase 4 | Crash signature unproducible on demand (plan 01-02 `verification: backstop`); no-retry-on-real-failure half proven by canary | — Pending (override recorded in 01-VERIFICATION.md) |
 
 ## Evolution
 
@@ -87,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-08 after initialization*
+*Last updated: 2026-10-14 after Phase 1*

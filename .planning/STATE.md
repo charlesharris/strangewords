@@ -20,10 +20,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-08)
+See: .planning/PROJECT.md (updated 2026-10-14)
 
 **Core value:** A trustworthy, automated proof that the core experience works — so every future change can be verified against a known-good baseline instead of memory and manual poking.
-**Current focus:** Phase 01 — Clean Tree & Trustworthy iOS Harness
+**Current focus:** Phase 2 — iOS Client Logic Suites
 
 ## Current Position
 
@@ -80,11 +80,11 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 1]: Scheme test env / `TEST_RUNNER_` forwarding isolating the host app is MEDIUM confidence; probe it before relying on it.
-- [Phase 1]: Bundle ID is changed in the working tree; confirm the test bundle ID (`com.strangerwords.us.tests`).
 - [Phase 2]: Late-poll race in `AppModel` (no `Task.isCancelled` check after `await`) is an expected finding.
 - [Phase 3]: `WaitEntry` leak in `Store.DeleteSession` is expected to fail the zero-keys assertion; triage it as a real bug.
 - [Phase 4]: No iOS 17.x simulator runtime is installed, so the 17.0 deployment target is tested only on 18.6. Record this on the not-verified list or install a runtime.
+- [Phase 4]: Carry-overs from Phase 1 verification: cold-boot retry path unexercised (override recorded in 01-VERIFICATION.md); App Attest entitlements not applied in unsigned test runs; no concurrent-run lock between harness runs.
+- [Phase 4]: Code review 01-REVIEW.md left 4 advisory warnings open (stale SW_VERIFY_OUT verdicts, boot failure reported as exit 1, nondeterministic simulator pick, fail-open AppAttestAppID undocumented in DEPLOY.md) — see 01-REVIEW-DISPOSITION.md.
 
 ## Deferred Items
 
