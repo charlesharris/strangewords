@@ -16,6 +16,12 @@ type Config struct {
 	PresenceWindow time.Duration // how recently a participant must be seen to count as "present"
 	RateRPS        float64       // per-IP sustained request rate; <= 0 disables rate limiting
 	RateBurst      float64       // per-IP burst allowance (token-bucket depth)
+
+	// AppAttestAppID is the Apple App ID (<TeamID>.<bundleId>) that App Attest
+	// attestations and assertions must bind to. The attestation validator hashes
+	// this to the expected rpId. Empty disables App Attest enforcement (the
+	// simulator dev loop, which has no Secure Enclave, runs with it unset).
+	AppAttestAppID string
 }
 
 func Load() Config {
@@ -31,6 +37,10 @@ func Load() Config {
 		// share one IP across many real users. SW_RATE_RPS=0 disables limiting.
 		RateRPS:   envFloat("SW_RATE_RPS", 30),
 		RateBurst: envFloat("SW_RATE_BURST", 60),
+		// Apple App ID for App Attest. Empty by default so local/dev runs (no
+		// Secure Enclave on the simulator) skip enforcement; set in Fly secrets
+		// for production: SW_APP_ATTEST_APPID=2M6QRD8T3A.com.strangerwords.us
+		AppAttestAppID: env("SW_APP_ATTEST_APPID", ""),
 	}
 }
 
