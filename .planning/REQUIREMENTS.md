@@ -9,7 +9,7 @@ Requirements for this milestone. Each maps to roadmap phases. The "user" is the 
 
 ### Harness
 
-- [ ] **HARN-01**: Working tree is reconciled (the six uncommitted/untracked files committed or reverted deliberately) and all existing checks pass: `go test ./...`, `go vet`, `go build`, `xcodegen generate` + `xcodebuild build`
+- [x] **HARN-01**: Working tree is reconciled (the six uncommitted/untracked files committed or reverted deliberately) and all existing checks pass: `go test ./...`, `go vet`, `go build`, `xcodegen generate` + `xcodebuild build`
 - [ ] **HARN-02**: iOS unit-test target exists in `ios/project.yml` (hosted `bundle.unit-test`, scheme `test:` action) and survives `xcodegen generate`
 - [ ] **HARN-03**: Developer can run the iOS test suite headlessly from the CLI with a trustworthy verdict — non-zero exit on failure, and a run with zero executed tests counts as failure
 - [ ] **HARN-04**: Developer can run every verification stage (Go checks, iOS tests, e2e) with one command, with per-stage skip flags
@@ -79,7 +79,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HARN-01 | Phase 1 | Pending |
+| HARN-01 | Phase 1 | Complete |
 | HARN-02 | Phase 1 | Pending |
 | HARN-03 | Phase 1 | Pending |
 | IOST-01 | Phase 2 | Pending |
