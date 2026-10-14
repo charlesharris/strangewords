@@ -11,9 +11,10 @@ so the backend can be re-pointed via DNS without an App Store update.
 > matching the app's display name "Stranger Words"). The backend lives on the
 > `api.` subdomain; the apex `strangerwords.us` is reserved for a future landing
 > page. The Fly app is `strangerwords` (hence `strangerwords.fly.dev`). The Go
-> module/identifiers and the iOS bundle id (`com.strangewords.app`) keep the
-> no-"r" spelling on purpose — they're internal, never user-visible, and
-> renaming them is churn.
+> module/identifiers keep the no-"r" spelling on purpose — they're internal,
+> never user-visible, and renaming them is churn. The **iOS bundle id is
+> `com.strangerwords.us`** (with the "r"), matching the registered App ID so
+> App Attest can bind to `2M6QRD8T3A.com.strangerwords.us`.
 
 ## Why Fly.io
 

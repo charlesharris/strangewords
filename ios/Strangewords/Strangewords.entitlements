@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- App Attest: which DeviceCheck environment the Secure Enclave keys attest
+	     against. Driven by the APP_ATTEST_ENVIRONMENT build setting (development
+	     for Debug, production for Release) so dev devices and shipped builds use
+	     the matching Apple service. -->
+	<key>com.apple.developer.devicecheck.appattest-environment</key>
+	<string>$(APP_ATTEST_ENVIRONMENT)</string>
+</dict>
+</plist>

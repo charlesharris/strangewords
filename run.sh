@@ -22,7 +22,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 IOS="$ROOT/ios"
 PROJ="$IOS/Strangewords.xcodeproj"
 APP="$IOS/build/Build/Products/Debug-iphonesimulator/Strangewords.app"
-BUNDLE="com.strangewords.app"
+BUNDLE="com.strangerwords.us"
 BASE="http://127.0.0.1:8080"
 
 # Default: a single simulator in mock mode — an on-device stranger auto-replies
