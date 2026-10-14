@@ -35,14 +35,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. While tests run, the host app launches in local-mock mode, so no test can reach the production server through a leftover token
 
 **Notes**: Research flag: before relying on scheme test env / `TEST_RUNNER_` forwarding to isolate the host app, confirm it with a one-line probe. Also confirm the test bundle ID (`com.strangerwords.us.tests`) against the bundle-ID change in the working tree.
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans executed
 
 Plans:
 **Wave 1**
 - [x] 01-01-PLAN.md — Reconcile the dirty tree in two concern-split commits, accept gofmt output in a separate formatting-only commit, and prove every existing check green, including an empty `gofmt -l server/` and a fresh-clone build (HARN-01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-02-PLAN.md — Hosted StrangewordsTests target, isolated scheme test action, `scripts/test-ios.sh` result-bundle verdict, and a re-runnable self-check proving it cannot report a false green (HARN-02, HARN-03)
+- [x] 01-02-PLAN.md — Hosted StrangewordsTests target, isolated scheme test action, `scripts/test-ios.sh` result-bundle verdict, and a re-runnable self-check proving it cannot report a false green (HARN-02, HARN-03)
 
 ### Phase 2: iOS Client Logic Suites
 
@@ -97,7 +97,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4. Phases 2 and 3 depend only
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Clean Tree & Trustworthy iOS Harness | 1/2 | In Progress | - |
+| 1. Clean Tree & Trustworthy iOS Harness | 2/2 | In Progress | - |
 | 2. iOS Client Logic Suites | 0/TBD | Not started | - |
 | 3. Server End-to-End & Wire Contract | 0/TBD | Not started | - |
 | 4. One-Command Verify & Baseline | 0/TBD | Not started | - |
