@@ -23,9 +23,9 @@ import (
 )
 
 type rig struct {
-	ts  *httptest.Server
-	mr  *miniredis.Miniredis
-	cl  *http.Client
+	ts *httptest.Server
+	mr *miniredis.Miniredis
+	cl *http.Client
 }
 
 func newRig(t *testing.T) *rig {

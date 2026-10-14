@@ -12,9 +12,9 @@ import (
 const MaxLineLen = 100
 
 var (
-	ErrEmptyLine = errors.New("line is empty")
+	ErrEmptyLine   = errors.New("line is empty")
 	ErrLineTooLong = errors.New("line exceeds maximum length")
-	ErrBadChars  = errors.New("line contains disallowed characters")
+	ErrBadChars    = errors.New("line contains disallowed characters")
 )
 
 // CleanLine normalizes and validates a submitted line. It never checks

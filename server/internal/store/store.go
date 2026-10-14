@@ -19,8 +19,8 @@ import (
 
 // TTLs. [TUNABLE] — see plan.v1.md §5/§6.
 const (
-	SessionTTL = 90 * time.Minute      // outer bound for an in-progress poem
-	RevealTTL  = 120 * time.Second     // reveal-window cap once complete
+	SessionTTL = 90 * time.Minute  // outer bound for an in-progress poem
+	RevealTTL  = 120 * time.Second // reveal-window cap once complete
 	WaitTTL    = 15 * time.Minute
 	IdemTTL    = 10 * time.Minute
 )

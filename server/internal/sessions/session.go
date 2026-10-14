@@ -71,15 +71,15 @@ func (s *Session) IndexForToken(token string) int {
 // speaks participant indices, never A/B, so the client is participant-count
 // agnostic (plan.v1.md §7).
 type View struct {
-	SessionID        string     `json:"sessionId"`
-	You              int        `json:"you"`
-	ParticipantCount int        `json:"participantCount"`
-	Status           Status     `json:"status"`
-	Form             FormView   `json:"form"`
-	CurrentLine      int        `json:"currentLine"`
-	CurrentAuthor    int        `json:"currentAuthor"`
-	YourTurn         bool       `json:"yourTurn"`
-	Lines            []string   `json:"lines"`
+	SessionID        string   `json:"sessionId"`
+	You              int      `json:"you"`
+	ParticipantCount int      `json:"participantCount"`
+	Status           Status   `json:"status"`
+	Form             FormView `json:"form"`
+	CurrentLine      int      `json:"currentLine"`
+	CurrentAuthor    int      `json:"currentAuthor"`
+	YourTurn         bool     `json:"yourTurn"`
+	Lines            []string `json:"lines"`
 }
 
 // FormView is the structure descriptor the client renders from.
