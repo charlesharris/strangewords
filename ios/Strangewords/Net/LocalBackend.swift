@@ -99,6 +99,13 @@ actor LocalBackend: Backend {
     func leave(id: String, token: String) async {}
     func dismiss(id: String, token: String) async {}
 
+    // MARK: - Line validation
+
+    /// TODO(02-03 red): stub that returns today's behavior (trim only).
+    static func cleanLine(_ raw: String) throws -> String {
+        raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     // MARK: - Turn machinery
 
     private func writeStrangerLine() {
