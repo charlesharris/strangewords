@@ -58,7 +58,7 @@ Plans:
   5. The whole iOS suite finishes in seconds with no real-time sleeps, and no test leaves a token behind in the app's shared `UserDefaults` container
 
 **Notes**: Expected finding: the late-poll race (poll loops call `apply()` after an `await` without checking `Task.isCancelled`). Expose it with a gated fake and fix it here under fix-as-we-go. Use `@Suite(.serialized)` for suites that share state.
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans executed
 
 Plans are chained one per wave. Each plan proves itself through `scripts/test-ios.sh`, which boots and shuts down the single pinned "iPhone 16" simulator, and the harness has no concurrent-run lock.
 
@@ -73,7 +73,7 @@ Plans:
 - [x] 02-03-PLAN.md — LocalBackend: zero-able delay seams with unchanged defaults; a `sessions.CleanLine` port, red-first; round-robin, pacing, turn violations and resubmit pinned against named Go tests; minimal teardown (IOST-03, IOST-05)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 02-04-PLAN.md — PoemNaming goldens captured on the simulator, plus the hash/PRNG mutation checks; the Syllables table with known misses pinned; 5/7/5 targets via `SessionView.currentTarget`; a heuristic mutation check (IOST-01, IOST-02)
+- [x] 02-04-PLAN.md — PoemNaming goldens captured on the simulator, plus the hash/PRNG mutation checks; the Syllables table with known misses pinned; 5/7/5 targets via `SessionView.currentTarget`; a heuristic mutation check (IOST-01, IOST-02)
 
 ### Phase 3: Server End-to-End & Wire Contract
 
@@ -113,6 +113,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4. Phases 2 and 3 depend only
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Clean Tree & Trustworthy iOS Harness | 2/2 | Complete    | 2026-10-14 |
-| 2. iOS Client Logic Suites | 3/4 | In Progress | - |
+| 2. iOS Client Logic Suites | 4/4 | In Progress | - |
 | 3. Server End-to-End & Wire Contract | 0/TBD | Not started | - |
 | 4. One-Command Verify & Baseline | 0/TBD | Not started | - |
