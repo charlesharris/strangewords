@@ -14,7 +14,13 @@ actor LocalBackend: Backend {
     private let targets: [Int?] = [5, 7, 5]
 
     /// How long the stranger "thinks" before its line appears. [TUNABLE]
-    private let strangerThinkTime: TimeInterval = 1.6
+    static let defaultStrangerThinkTime: TimeInterval = 1.6
+
+    /// A breath at the threshold before the match lands. [TUNABLE]
+    static let defaultEnterDelay: Duration = .milliseconds(600)
+
+    private let strangerThinkTime: TimeInterval
+    private let enterDelay: Duration
 
     private var lines: [String] = []
     private var currentLine = 0
@@ -30,6 +36,13 @@ actor LocalBackend: Backend {
         "snow settles on the still pine",
     ]
     private var strangerPick = 0
+
+    /// Defaults preserve the pacing the app ships with; tests pass zero so
+    /// nothing waits on the wall clock (Phase 2 D-02).
+    init(strangerThinkTime: TimeInterval = LocalBackend.defaultStrangerThinkTime, enterDelay: Duration = LocalBackend.defaultEnterDelay) {
+        self.strangerThinkTime = strangerThinkTime
+        self.enterDelay = enterDelay
+    }
 
     // Round-robin over two participants from start index 0.
     private var currentAuthor: Int { currentLine % 2 }
@@ -58,7 +71,7 @@ actor LocalBackend: Backend {
         currentLine = 0
         status = "active"
         strangerTurnSince = nil
-        try? await Task.sleep(for: .milliseconds(600)) // a breath at the threshold
+        try? await Task.sleep(for: enterDelay) // a breath at the threshold
         return EnterResponse(participantToken: "local", state: "matched", session: view(), waitId: nil)
     }
 
