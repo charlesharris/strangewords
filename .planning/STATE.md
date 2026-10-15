@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: iOS Client Logic Suites
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-10-15T18:18:20.317Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-10-15T18:25:15.158Z"
 last_activity: 2026-10-15
 last_activity_desc: Phase 02 execution started
-state_head: 993ff12272254d222f99ceb245748af3dd713441
+state_head: aed060598b891517f2ae5f6f2f1f9855663ad542
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 6
-  completed_plans: 3
+  completed_plans: 4
   percent: 25
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 02 (iOS Client Logic Suites) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-10-15 — Phase 02 execution started
 
@@ -59,6 +59,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 01 P01 | 9min | 3 tasks | 10 files |
 | Phase 01 P02 | 4min | 2 tasks | 7 files |
 | Phase 02 P01 | 9min | 3 tasks | 8 files |
+| Phase 02 P02 | 4 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,7 @@ Recent decisions affecting current work:
 - [Phase 01]: Pinned simulator is shut down unconditionally at run end, even if pre-booted (D-07) — Locked user decision; ends a run.sh session on the same simulator, documented in script header (T-01-09)
 - [Phase 02]: [02-01] D-03 session default read as APIClient.shared with the existing ephemeral 15 s URLSession (not URLSession.shared); needs developer confirmation — URLSession.shared would change timeout to 60 s and add persistent cookies/cache, contradicting IOST-05 and the anonymity posture; reversible via one default argument
 - [Phase 02]: [02-01] OBS-1: a waiter who leaves before a match is never reported to the server (AppModel.leave only calls the backend when a session id exists); pinned by leaveWhileWaitingSendsNoLeaveCall, not changed — Server has no wait-leave endpoint; carry to Phase 4 ledger
+- [Phase 02]: Plan 02-02: stale-writer race fixed with a session epoch (bumped in begin/reset/dissolve) plus Task.isCancelled via isStale(e), checked after every await and first in apply(_:epoch:) — leave() never cancels action tasks, so the epoch covers begin/resume/submit while isCancelled covers poll tasks (D-08); seven red-first regression tests pin it
 
 ### Pending Todos
 
@@ -99,6 +101,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T18:18:20.295Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-10-15T18:25:15.136Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
