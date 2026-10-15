@@ -58,7 +58,7 @@ Plans:
   5. The whole iOS suite finishes in seconds with no real-time sleeps, and no test leaves a token behind in the app's shared `UserDefaults` container
 
 **Notes**: Expected finding: the late-poll race (poll loops call `apply()` after an `await` without checking `Task.isCancelled`). Expose it with a gated fake and fix it here under fix-as-we-go. Use `@Suite(.serialized)` for suites that share state.
-**Plans**: 4/4 plans executed
+**Plans**: 4/6 plans executed
 
 Plans are chained one per wave. Each plan proves itself through `scripts/test-ios.sh`, which boots and shuts down the single pinned "iPhone 16" simulator, and the harness has no concurrent-run lock.
 
@@ -74,6 +74,10 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [x] 02-04-PLAN.md — PoemNaming goldens captured on the simulator, plus the hash/PRNG mutation checks; the Syllables table with known misses pinned; 5/7/5 targets via `SessionView.currentTarget`; a heuristic mutation check (IOST-01, IOST-02)
+
+**Gap closure** *(from 02-UAT.md; 02-06 blocked on 02-05)*
+- [ ] 02-05-PLAN.md — G-02-1: red-first race test for the stale submit flag, then an epoch-guarded `submitting` reset and a flag clear in `dissolve()`, with a mutation proving the clear is load-bearing (IOST-04, WR-03)
+- [ ] 02-06-PLAN.md — G-02-3: tighten the two leave tests and the two stale-response race tests (distinct stale/fresh tokens, identity asserted between resolves), each proven by a caught, reverted mutation (IOST-04, WR-04, WR-06)
 
 ### Phase 3: Server End-to-End & Wire Contract
 
@@ -113,6 +117,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4. Phases 2 and 3 depend only
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Clean Tree & Trustworthy iOS Harness | 2/2 | Complete    | 2026-10-14 |
-| 2. iOS Client Logic Suites | 4/4 | In Progress | - |
+| 2. iOS Client Logic Suites | 4/6 | In Progress | - |
 | 3. Server End-to-End & Wire Contract | 0/TBD | Not started | - |
 | 4. One-Command Verify & Baseline | 0/TBD | Not started | - |
