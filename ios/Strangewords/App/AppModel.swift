@@ -53,6 +53,10 @@ final class AppModel {
     /// The in-flight action task (begin, resume, submit, release, leave). It gives
     /// tests a deterministic sync point (Phase 2 D-07); views never read it.
     @ObservationIgnored private(set) var actionTask: Task<Void, Never>?
+    /// A session generation. `begin`, `reset` and `dissolve` bump it; any writer that
+    /// captured an older value is stale and must not touch state or identity (D-08).
+    /// Compared for equality only, never ordered.
+    @ObservationIgnored private var epoch = 0
 
     /// The default backend is the real one, unless `SW_LOCAL_MOCK=1` selects the
     /// on-device `LocalBackend` (see `./run.sh --mock`). Tests/previews can inject.
@@ -80,6 +84,7 @@ final class AppModel {
 
     /// Cross the threshold: enter the pool and either match or begin waiting.
     func begin() {
+        epoch += 1
         Haptics.soft()
         keepsake = nil
         phase = .connecting
@@ -173,6 +178,7 @@ final class AppModel {
 
     /// Return to the threshold after a dissolution.
     func reset() {
+        epoch += 1
         stopPolling()
         draft = ""
         submitError = nil
@@ -222,6 +228,7 @@ final class AppModel {
     }
 
     private func dissolve(_ reason: Reason) {
+        epoch += 1
         stopPolling()
         tokenStore.clear()
         phase = .dissolved(reason)
@@ -231,14 +238,17 @@ final class AppModel {
 
     private func pollWaiting() {
         stopPolling()
+        let e = epoch
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: self?.pollInterval ?? AppModel.defaultPollInterval)
                 guard let self, let token = self.tokenStore.token else { return }
                 do {
                     let r = try await self.api.waiting(token: token)
+                    guard !self.isStale(e) else { return }
                     if r.state == "matched", let s = r.session { self.apply(s); return }
                 } catch APIError.gone {
+                    guard !self.isStale(e) else { return }
                     self.dissolve(.noOneCame); return
                 } catch {
                     // transient; keep waiting
@@ -248,23 +258,32 @@ final class AppModel {
     }
 
     private func pollSession(id: String) {
+        let e = epoch
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: self?.pollInterval ?? AppModel.defaultPollInterval)
                 guard let self, let token = self.tokenStore.token else { return }
                 do {
                     let s = try await self.api.getSession(id: id, token: token)
+                    guard !self.isStale(e) else { return }
                     if s.yourTurn || s.status != "active" {
                         self.apply(s); return
                     }
                     self.phase = .composing(s) // refresh lines while we wait
                 } catch APIError.gone {
+                    guard !self.isStale(e) else { return }
                     self.dissolve(.partnerLeft); return
                 } catch {
                     // transient; keep polling
                 }
             }
         }
+    }
+
+    /// True once this writer's generation has ended: its task was cancelled, or a
+    /// `begin`/`reset`/`dissolve` moved the epoch on since it captured `e`.
+    private func isStale(_ e: Int) -> Bool {
+        Task.isCancelled || e != epoch
     }
 
     private func stopPolling() {
