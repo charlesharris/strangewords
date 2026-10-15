@@ -9,23 +9,33 @@ import Foundation
 /// simulator builds, where Keychain access requires a signing entitlement and
 /// otherwise fails silently. If hardware-backed storage is ever wanted on
 /// signed builds, this is the single place to change.
-enum TokenStore {
-    private static let tokenKey = "sw.participantToken"
-    private static let sessionKey = "sw.sessionId"
+///
+/// An instance is injected into `AppModel` (Phase 2 D-01): production keeps the
+/// default `UserDefaults.standard`, while tests pass a suite-named container so
+/// no test ever writes identity into the app's shared defaults.
+struct TokenStore {
+    static let tokenKey = "sw.participantToken"
+    static let sessionKey = "sw.sessionId"
 
-    static var token: String? {
-        get { UserDefaults.standard.string(forKey: tokenKey) }
-        set { UserDefaults.standard.set(newValue, forKey: tokenKey) }
+    let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
     }
 
-    static var sessionId: String? {
-        get { UserDefaults.standard.string(forKey: sessionKey) }
-        set { UserDefaults.standard.set(newValue, forKey: sessionKey) }
+    var token: String? {
+        get { defaults.string(forKey: Self.tokenKey) }
+        nonmutating set { defaults.set(newValue, forKey: Self.tokenKey) }
+    }
+
+    var sessionId: String? {
+        get { defaults.string(forKey: Self.sessionKey) }
+        nonmutating set { defaults.set(newValue, forKey: Self.sessionKey) }
     }
 
     /// Erase everything tying this device to an engagement.
-    static func clear() {
-        UserDefaults.standard.removeObject(forKey: tokenKey)
-        UserDefaults.standard.removeObject(forKey: sessionKey)
+    func clear() {
+        defaults.removeObject(forKey: Self.tokenKey)
+        defaults.removeObject(forKey: Self.sessionKey)
     }
 }

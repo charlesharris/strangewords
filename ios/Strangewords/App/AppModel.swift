@@ -43,13 +43,26 @@ final class AppModel {
     /// nil for every other ending. Read by `DissolvedView`.
     private(set) var keepsake: CoinedName?
 
+    /// How often the poll loops ask the backend for news.
+    static let defaultPollInterval: Duration = .seconds(3) // [TUNABLE] plan.v1.md §10
+
     private let api: any Backend
-    private var pollTask: Task<Void, Never>?
-    private let pollInterval: Duration = .seconds(3) // [TUNABLE] plan.v1.md §10
+    private let tokenStore: TokenStore
+    let pollInterval: Duration
+    @ObservationIgnored private(set) var pollTask: Task<Void, Never>?
+    /// The in-flight action task (begin, resume, submit, release, leave). It gives
+    /// tests a deterministic sync point (Phase 2 D-07); views never read it.
+    @ObservationIgnored private(set) var actionTask: Task<Void, Never>?
 
     /// The default backend is the real one, unless `SW_LOCAL_MOCK=1` selects the
     /// on-device `LocalBackend` (see `./run.sh --mock`). Tests/previews can inject.
-    init(backend: (any Backend)? = nil) {
+    /// `tokenStore` (identity container) and `pollInterval` (poll cadence) are
+    /// defaulted seams: production keeps `UserDefaults.standard` and 3 seconds.
+    init(backend: (any Backend)? = nil,
+         tokenStore: TokenStore = TokenStore(),
+         pollInterval: Duration = AppModel.defaultPollInterval) {
+        self.tokenStore = tokenStore
+        self.pollInterval = pollInterval
         if let backend {
             self.api = backend
         } else if ProcessInfo.processInfo.environment["SW_LOCAL_MOCK"] == "1" {
@@ -57,7 +70,7 @@ final class AppModel {
             // Mock sessions are ephemeral (a fresh LocalBackend each launch), so
             // a token persisted from a previous run is meaningless — clear it so
             // we always start at the threshold rather than resuming a ghost.
-            TokenStore.clear()
+            tokenStore.clear()
         } else {
             self.api = APIClient.shared
         }
@@ -70,10 +83,10 @@ final class AppModel {
         Haptics.soft()
         keepsake = nil
         phase = .connecting
-        Task {
+        actionTask = Task {
             do {
                 let r = try await api.enter(pushToken: nil)
-                if let t = r.participantToken { TokenStore.token = t }
+                if let t = r.participantToken { tokenStore.token = t }
                 handleEnter(r)
             } catch {
                 submitError = "Couldn't reach the quiet room. Try again."
@@ -84,10 +97,10 @@ final class AppModel {
 
     /// On cold launch, resume an in-progress engagement if the device holds one.
     func resume() {
-        guard let token = TokenStore.token else { phase = .threshold; return }
-        Task {
+        guard let token = tokenStore.token else { phase = .threshold; return }
+        actionTask = Task {
             do {
-                if let sid = TokenStore.sessionId {
+                if let sid = tokenStore.sessionId {
                     let s = try await api.getSession(id: sid, token: token)
                     apply(s)
                 } else {
@@ -96,7 +109,7 @@ final class AppModel {
                     else { phase = .waiting; pollWaiting() }
                 }
             } catch APIError.gone {
-                TokenStore.clear(); phase = .threshold
+                tokenStore.clear(); phase = .threshold
             } catch {
                 phase = .threshold
             }
@@ -106,13 +119,13 @@ final class AppModel {
     // MARK: - Actions
 
     func submit() {
-        guard case .composing(let s) = phase, s.yourTurn, let token = TokenStore.token else { return }
+        guard case .composing(let s) = phase, s.yourTurn, let token = tokenStore.token else { return }
         let text = draft
         let line = s.currentLine
         let idem = UUID().uuidString
         Haptics.offer()
         submitting = true
-        Task {
+        actionTask = Task {
             defer { submitting = false }
             do {
                 let updated = try await api.submitLine(id: s.sessionId, token: token, line: line, text: text, idemKey: idem)
@@ -136,8 +149,8 @@ final class AppModel {
     /// dissolution effect. The effect calls `finishDissolving()` when it ends.
     func release() {
         guard case .reveal(let s) = phase else { return }
-        if let token = TokenStore.token {
-            Task { await api.dismiss(id: s.sessionId, token: token) }
+        if let token = tokenStore.token {
+            actionTask = Task { await api.dismiss(id: s.sessionId, token: token) }
         }
         phase = .dissolving(s)
     }
@@ -152,8 +165,8 @@ final class AppModel {
     }
 
     func leave() {
-        if let id = TokenStore.sessionId, let token = TokenStore.token {
-            Task { await api.leave(id: id, token: token) }
+        if let id = tokenStore.sessionId, let token = tokenStore.token {
+            actionTask = Task { await api.leave(id: id, token: token) }
         }
         dissolve(.ended)
     }
@@ -185,7 +198,7 @@ final class AppModel {
         let wasYourTurn = composingSession?.yourTurn ?? false
         let wasReveal = isReveal
 
-        TokenStore.sessionId = s.sessionId
+        tokenStore.sessionId = s.sessionId
         stopPolling()
         switch s.status {
         case "active":
@@ -210,7 +223,7 @@ final class AppModel {
 
     private func dissolve(_ reason: Reason) {
         stopPolling()
-        TokenStore.clear()
+        tokenStore.clear()
         phase = .dissolved(reason)
     }
 
@@ -220,8 +233,8 @@ final class AppModel {
         stopPolling()
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: self?.pollInterval ?? .seconds(3))
-                guard let self, let token = TokenStore.token else { return }
+                try? await Task.sleep(for: self?.pollInterval ?? AppModel.defaultPollInterval)
+                guard let self, let token = self.tokenStore.token else { return }
                 do {
                     let r = try await self.api.waiting(token: token)
                     if r.state == "matched", let s = r.session { self.apply(s); return }
@@ -237,8 +250,8 @@ final class AppModel {
     private func pollSession(id: String) {
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: self?.pollInterval ?? .seconds(3))
-                guard let self, let token = TokenStore.token else { return }
+                try? await Task.sleep(for: self?.pollInterval ?? AppModel.defaultPollInterval)
+                guard let self, let token = self.tokenStore.token else { return }
                 do {
                     let s = try await self.api.getSession(id: id, token: token)
                     if s.yourTurn || s.status != "active" {
