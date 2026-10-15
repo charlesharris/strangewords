@@ -91,7 +91,8 @@ actor LocalBackend: Backend {
 
     func submitLine(id: String, token: String, line: Int, text: String, idemKey: String) async throws -> SessionView {
         guard yourTurn, line == currentLine else { return view() }
-        lines.append(text.trimmingCharacters(in: .whitespacesAndNewlines))
+        // The server checks turns before content, so the guard above stays first.
+        lines.append(try Self.cleanLine(text))
         advance()
         return view()
     }
@@ -101,9 +102,56 @@ actor LocalBackend: Backend {
 
     // MARK: - Line validation
 
-    /// TODO(02-03 red): stub that returns today's behavior (trim only).
+    /// Mirrors sessions.MaxLineLen (server/internal/sessions/validate.go), counted in
+    /// Unicode scalars like Go runes. [TUNABLE]
+    static let maxLineLength = 100
+
+    /// Normalizes and validates a submitted line exactly as `CleanLine`
+    /// (server/internal/sessions/validate.go) does, in the same order, throwing the
+    /// server's own messages as `APIError.contentRejected` so `AppModel.submit` shows
+    /// the same `submitError` in mock mode as against the real backend.
+    ///
+    /// DRIFT: the server's banned-term screener (`TestCleanLineScreens`,
+    /// server/internal/sessions/content_test.go) is server-only and is not mirrored
+    /// here (DRFT-01).
     static func cleanLine(_ raw: String) throws -> String {
-        raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Normalize to NFC first so length and character checks are stable.
+        let normalized = raw.precomposedStringWithCanonicalMapping
+
+        // Control characters are rejected, except tab, CR and LF, which count as
+        // whitespace below.
+        for scalar in normalized.unicodeScalars {
+            if scalar == "\n" || scalar == "\r" || scalar == "\t" { continue }
+            if scalar.properties.generalCategory == .control {
+                throw APIError.contentRejected("line contains disallowed characters")
+            }
+        }
+
+        // Zero-width space, non-joiner, joiner, BOM and word-joiner are stripped.
+        let zeroWidth: Set<UInt32> = [0x200B, 0x200C, 0x200D, 0xFEFF, 0x2060]
+        let stripped = normalized.unicodeScalars.filter { !zeroWidth.contains($0.value) }
+
+        // Each run of whitespace collapses to a single space.
+        var collapsed = String.UnicodeScalarView()
+        var previousWasSpace = false
+        for scalar in stripped {
+            if scalar.properties.isWhitespace {
+                if !previousWasSpace { collapsed.append(" ") }
+                previousWasSpace = true
+            } else {
+                collapsed.append(scalar)
+                previousWasSpace = false
+            }
+        }
+
+        let cleaned = String(collapsed).trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleaned.isEmpty {
+            throw APIError.contentRejected("line is empty")
+        }
+        if cleaned.unicodeScalars.count > maxLineLength {
+            throw APIError.contentRejected("line exceeds maximum length")
+        }
+        return cleaned
     }
 
     // MARK: - Turn machinery
