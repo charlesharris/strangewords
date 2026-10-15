@@ -85,15 +85,18 @@ final class AppModel {
     /// Cross the threshold: enter the pool and either match or begin waiting.
     func begin() {
         epoch += 1
+        let e = epoch
         Haptics.soft()
         keepsake = nil
         phase = .connecting
         actionTask = Task {
             do {
                 let r = try await api.enter(pushToken: nil)
+                guard !isStale(e) else { return }
                 if let t = r.participantToken { tokenStore.token = t }
-                handleEnter(r)
+                handleEnter(r, epoch: e)
             } catch {
+                guard !isStale(e) else { return }
                 submitError = "Couldn't reach the quiet room. Try again."
                 phase = .threshold
             }
@@ -103,19 +106,24 @@ final class AppModel {
     /// On cold launch, resume an in-progress engagement if the device holds one.
     func resume() {
         guard let token = tokenStore.token else { phase = .threshold; return }
+        let e = epoch
         actionTask = Task {
             do {
                 if let sid = tokenStore.sessionId {
                     let s = try await api.getSession(id: sid, token: token)
-                    apply(s)
+                    guard !isStale(e) else { return }
+                    apply(s, epoch: e)
                 } else {
                     let r = try await api.waiting(token: token)
-                    if r.state == "matched", let s = r.session { apply(s) }
+                    guard !isStale(e) else { return }
+                    if r.state == "matched", let s = r.session { apply(s, epoch: e) }
                     else { phase = .waiting; pollWaiting() }
                 }
             } catch APIError.gone {
+                guard !isStale(e) else { return }
                 tokenStore.clear(); phase = .threshold
             } catch {
+                guard !isStale(e) else { return }
                 phase = .threshold
             }
         }
@@ -128,23 +136,28 @@ final class AppModel {
         let text = draft
         let line = s.currentLine
         let idem = UUID().uuidString
+        let e = epoch
         Haptics.offer()
         submitting = true
         actionTask = Task {
             defer { submitting = false }
             do {
                 let updated = try await api.submitLine(id: s.sessionId, token: token, line: line, text: text, idemKey: idem)
+                guard !isStale(e) else { return }
                 draft = ""
                 submitError = nil
-                apply(updated)
+                apply(updated, epoch: e)
             } catch APIError.contentRejected(let m) {
+                guard !isStale(e) else { return }
                 submitError = m
             } catch APIError.gone {
+                guard !isStale(e) else { return }
                 dissolve(.partnerLeft)
             } catch APIError.notYourTurn, APIError.wrongTurn {
                 // Our view was stale; refetch.
-                await refresh(id: s.sessionId, token: token)
+                await refresh(id: s.sessionId, token: token, epoch: e)
             } catch {
+                guard !isStale(e) else { return }
                 submitError = "Something slipped. Try once more."
             }
         }
@@ -188,17 +201,19 @@ final class AppModel {
 
     // MARK: - Transitions
 
-    private func handleEnter(_ r: EnterResponse) {
+    private func handleEnter(_ r: EnterResponse, epoch e: Int) {
         if r.state == "matched", let s = r.session {
-            apply(s)
+            apply(s, epoch: e)
         } else {
             phase = .waiting
             pollWaiting()
         }
     }
 
-    /// Project a server view onto a phase and arrange polling.
-    private func apply(_ s: SessionView) {
+    /// Project a server view onto a phase and arrange polling. The epoch check
+    /// comes first so a stale view never reaches the session-id write (D-08).
+    private func apply(_ s: SessionView, epoch e: Int) {
+        guard !isStale(e) else { return }
         // Read the outgoing phase before mutating, to detect real transitions.
         let wasComposing = composingSession != nil
         let wasYourTurn = composingSession?.yourTurn ?? false
@@ -223,8 +238,8 @@ final class AppModel {
         }
     }
 
-    private func refresh(id: String, token: String) async {
-        if let s = try? await api.getSession(id: id, token: token) { apply(s) }
+    private func refresh(id: String, token: String, epoch e: Int) async {
+        if let s = try? await api.getSession(id: id, token: token) { apply(s, epoch: e) }
     }
 
     private func dissolve(_ reason: Reason) {
@@ -246,7 +261,7 @@ final class AppModel {
                 do {
                     let r = try await self.api.waiting(token: token)
                     guard !self.isStale(e) else { return }
-                    if r.state == "matched", let s = r.session { self.apply(s); return }
+                    if r.state == "matched", let s = r.session { self.apply(s, epoch: e); return }
                 } catch APIError.gone {
                     guard !self.isStale(e) else { return }
                     self.dissolve(.noOneCame); return
@@ -267,7 +282,7 @@ final class AppModel {
                     let s = try await self.api.getSession(id: id, token: token)
                     guard !self.isStale(e) else { return }
                     if s.yourTurn || s.status != "active" {
-                        self.apply(s); return
+                        self.apply(s, epoch: e); return
                     }
                     self.phase = .composing(s) // refresh lines while we wait
                 } catch APIError.gone {
