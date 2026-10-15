@@ -157,4 +157,138 @@ struct LocalBackendTests {
         await model.actionTask?.value
         cleanup()
     }
+
+    // MARK: - Turn order, pacing, resubmits, teardown
+
+    private static func submit(_ backend: LocalBackend, line: Int, _ text: String, key: String = "k") async throws -> SessionView {
+        try await backend.submitLine(id: "local-poem", token: "local", line: line, text: text, idemKey: key + String(line))
+    }
+
+    /// Mirrors TestRoundRobinHaikuIsABA (server/internal/sessions/policy_test.go): the authors
+    /// fall you, stranger, you.
+    /// Mirrors TestFullPoemHappyPath (server/internal/gateway/gateway_test.go), which walks the
+    /// same three lines to a complete poem.
+    @Test func roundRobinIsABA() async throws {
+        let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero)
+        let first = try #require(try await backend.enter(pushToken: nil).session)
+        #expect(first.currentLine == 0)
+        #expect(first.currentAuthor == 0)
+
+        let afterYours = try await Self.submit(backend, line: 0, "an old silent pond")
+        #expect(afterYours.currentLine == 1)
+        #expect(afterYours.currentAuthor == 1)
+        #expect(!afterYours.yourTurn)
+
+        let afterStranger = try await backend.getSession(id: "local-poem", token: "local")
+        #expect(afterStranger.lines == ["an old silent pond", "a frog leaps into the pond"])
+        #expect(afterStranger.currentLine == 2)
+        #expect(afterStranger.currentAuthor == 0)
+        #expect(afterStranger.yourTurn)
+
+        let done = try await Self.submit(backend, line: 2, "splash silence again")
+        #expect(done.status == "complete")
+        #expect(done.currentLine == 3)
+        #expect(done.lines.count == 3)
+    }
+
+    /// Mirrors TestFullPoemHappyPath (server/internal/gateway/gateway_test.go): the stranger's
+    /// turn is held until it writes. With a 3600 s think time the line is not due, so this
+    /// proves the hold without waiting on the wall clock.
+    @Test func strangerHoldsThePoemUntilThinkTimePasses() async throws {
+        let backend = LocalBackend(strangerThinkTime: 3600, enterDelay: .zero)
+        _ = try await backend.enter(pushToken: nil)
+        _ = try await Self.submit(backend, line: 0, "an old silent pond")
+
+        let view = try await backend.getSession(id: "local-poem", token: "local")
+        #expect(view.lines.count == 1)
+        #expect(!view.yourTurn)
+        #expect(view.currentLine == 1)
+    }
+
+    /// Mirrors TestTurnOrderViolations (server/internal/gateway/gateway_test.go). A wrong line
+    /// index, or a submit during the stranger's turn, appends nothing.
+    ///
+    /// DRIFT: the server answers 409 (wrong_turn / not_your_turn) where the mock returns the
+    /// current view. AppModel refetches on those errors anyway, so it cannot tell (D-11, DRFT-01).
+    @Test func wrongLineOrOutOfTurnIsIgnored() async throws {
+        let backend = LocalBackend(strangerThinkTime: 3600, enterDelay: .zero)
+        _ = try await backend.enter(pushToken: nil)
+
+        let wrongLine = try await Self.submit(backend, line: 1, "wrong line")
+        #expect(wrongLine.lines.isEmpty)
+        #expect(wrongLine.currentLine == 0)
+
+        _ = try await Self.submit(backend, line: 0, "an old silent pond")
+        let outOfTurn = try await Self.submit(backend, line: 1, "not my turn")
+        #expect(outOfTurn.lines == ["an old silent pond"])
+        #expect(outOfTurn.currentLine == 1)
+        #expect(!outOfTurn.yourTurn)
+    }
+
+    /// Mirrors TestIdempotentResubmit (server/internal/gateway/gateway_test.go). A second
+    /// submit of line 0 with the same key never adds a second line.
+    ///
+    /// DRIFT: the server replays the original response verbatim from its idempotency cache;
+    /// the mock ignores idemKey and rejects the repeat on turn order alone. AppModel.submit
+    /// mints a fresh key per call, so AppModel cannot see the difference (D-11, DRFT-01).
+    @Test func resubmitDoesNotDuplicate() async throws {
+        let backend = LocalBackend(strangerThinkTime: 3600, enterDelay: .zero)
+        _ = try await backend.enter(pushToken: nil)
+
+        _ = try await backend.submitLine(id: "local-poem", token: "local", line: 0, text: "first words here", idemKey: "dupe")
+        _ = try await backend.submitLine(id: "local-poem", token: "local", line: 0, text: "different text", idemKey: "dupe")
+
+        let view = try await backend.getSession(id: "local-poem", token: "local")
+        #expect(view.lines == ["first words here"])
+        #expect(view.currentLine == 1)
+    }
+
+    /// Mirrors TestLeaveDissolves (server/internal/gateway/gateway_test.go): after leave, reads
+    /// and writes report gone. The poem's lines are erased with it.
+    @Test func leaveDissolvesAndErasesThePoem() async throws {
+        let backend = LocalBackend(strangerThinkTime: 3600, enterDelay: .zero)
+        _ = try await backend.enter(pushToken: nil)
+        _ = try await Self.submit(backend, line: 0, "an old silent pond")
+
+        await backend.leave(id: "local-poem", token: "local")
+
+        await #expect(throws: APIError.gone) {
+            try await backend.getSession(id: "local-poem", token: "local")
+        }
+        await #expect(throws: APIError.gone) {
+            try await Self.submit(backend, line: 1, "too late")
+        }
+    }
+
+    /// Mirrors TestFullPoemHappyPath (server/internal/gateway/gateway_test.go), dismiss-by-all
+    /// step: once a finished poem is dismissed, a fetch is gone.
+    @Test func dismissAfterCompletionDissolves() async throws {
+        let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero)
+        _ = try await backend.enter(pushToken: nil)
+        _ = try await Self.submit(backend, line: 0, "an old silent pond")
+        _ = try await backend.getSession(id: "local-poem", token: "local")
+        let done = try await Self.submit(backend, line: 2, "splash silence again")
+        #expect(done.status == "complete")
+
+        await backend.dismiss(id: "local-poem", token: "local")
+
+        await #expect(throws: APIError.gone) {
+            try await backend.getSession(id: "local-poem", token: "local")
+        }
+    }
+
+    /// Mirrors TestFullPoemHappyPath (server/internal/gateway/gateway_test.go), dismiss-by-all
+    /// step: a new encounter after teardown starts a fresh poem with nothing left over.
+    @Test func enterAfterTeardownStartsAFreshPoem() async throws {
+        let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero)
+        _ = try await backend.enter(pushToken: nil)
+        _ = try await Self.submit(backend, line: 0, "an old silent pond")
+        await backend.dismiss(id: "local-poem", token: "local")
+
+        let fresh = try #require(try await backend.enter(pushToken: nil).session)
+        #expect(fresh.status == "active")
+        #expect(fresh.currentLine == 0)
+        #expect(fresh.lines.isEmpty)
+        #expect(fresh.yourTurn)
+    }
 }
