@@ -11,6 +11,11 @@ import Foundation
 /// - `testEnvIsNotInheritedFromRunAction` checks that the Run action's `SW_DEV`
 ///   is absent. Seeing it would mean the test action fell back to inheriting the
 ///   Run env, which would make isolation hold only by accident.
+/// - `standardDefaultsHoldNoSessionKeys` is the executable backstop for Phase 2
+///   D-04: no test may leave a participant token or session id in the app's shared
+///   `UserDefaults.standard`. The mechanism is `makeModel`'s suite-named store; this
+///   guard does not depend on ordering, because the host app clears the standard
+///   container at launch in mock mode.
 struct HostIsolationTests {
     @Test func hostRunsInLocalMockMode() {
         let env = ProcessInfo.processInfo.environment
@@ -20,5 +25,10 @@ struct HostIsolationTests {
 
     @Test func testEnvIsNotInheritedFromRunAction() {
         #expect(ProcessInfo.processInfo.environment["SW_DEV"] == nil)
+    }
+
+    @Test func standardDefaultsHoldNoSessionKeys() {
+        let leaked = UserDefaults.standard.dictionaryRepresentation().keys.filter { $0.hasPrefix("sw.") }
+        #expect(leaked.isEmpty)
     }
 }

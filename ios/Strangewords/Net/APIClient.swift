@@ -22,7 +22,14 @@ actor APIClient: Backend {
     /// simulator dev loop overrides it with `SW_API_BASE` (run.sh sets this to
     /// the local server for --solo/--two); the override never ships, since the
     /// environment is only populated by simctl during a dev launch.
-    private let base: URL = {
+    // RED stubs (Phase 2 plan 01 Task 3): inert placeholders so the new tests
+    // compile and fail on their assertions. Replaced in the GREEN commit; nothing
+    // in production calls them yet.
+    static func resolveBase(environment: [String: String]) -> URL { URL(string: "about:blank")! }
+    static func makeDefaultSession() -> URLSession { URLSession(configuration: .ephemeral) }
+    init(base: URL = APIClient.resolveBase(environment: [:]), session: URLSession = APIClient.makeDefaultSession()) {}
+
+    let base: URL = {
         if let override = ProcessInfo.processInfo.environment["SW_API_BASE"],
            let u = URL(string: override) {
             return u
