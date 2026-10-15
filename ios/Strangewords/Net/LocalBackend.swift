@@ -8,6 +8,9 @@ import Foundation
 /// It mirrors the real coordination contract closely enough that `AppModel`
 /// can't tell the difference: haiku form (5-7-5), round-robin authorship from a
 /// start offset of 0, so the turns fall out as you → stranger → you.
+///
+/// Like the server, `leave` and `dismiss` dissolve the poem: its lines are erased
+/// and later reads and writes report `APIError.gone` until the next `enter`.
 actor LocalBackend: Backend {
     private let sessionId = "local-poem"
     private let you = 0
@@ -80,6 +83,7 @@ actor LocalBackend: Backend {
     }
 
     func getSession(id: String, token: String) async throws -> SessionView {
+        if status == "dissolved" { throw APIError.gone }
         // If the stranger is holding the poem and has had a moment to think,
         // let their line arrive. Polling (every few seconds) drives this.
         if status == "active", !yourTurn, let since = strangerTurnSince,
@@ -90,6 +94,7 @@ actor LocalBackend: Backend {
     }
 
     func submitLine(id: String, token: String, line: Int, text: String, idemKey: String) async throws -> SessionView {
+        if status == "dissolved" { throw APIError.gone }
         guard yourTurn, line == currentLine else { return view() }
         // The server checks turns before content, so the guard above stays first.
         lines.append(try Self.cleanLine(text))
@@ -97,8 +102,15 @@ actor LocalBackend: Backend {
         return view()
     }
 
-    func leave(id: String, token: String) async {}
-    func dismiss(id: String, token: String) async {}
+    func leave(id: String, token: String) async { dissolve() }
+    func dismiss(id: String, token: String) async { dissolve() }
+
+    /// Dissolution erases the poem, as on the server (TestLeaveDissolves).
+    private func dissolve() {
+        status = "dissolved"
+        lines = []
+        strangerTurnSince = nil
+    }
 
     // MARK: - Line validation
 
