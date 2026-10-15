@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 2
+current_phase: 02
 current_phase_name: iOS Client Logic Suites
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-10-14T19:29:53.873Z"
-last_activity: 2026-10-14
-last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: bc3b83b7fc5b86a618bdfc7a271a0351cd7940a2
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-10-15T18:18:20.317Z"
+last_activity: 2026-10-15
+last_activity_desc: Phase 02 execution started
+state_head: 993ff12272254d222f99ceb245748af3dd713441
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 6
-  completed_plans: 2
+  completed_plans: 3
   percent: 25
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-14)
 
 **Core value:** A trustworthy, automated proof that the core experience works — so every future change can be verified against a known-good baseline instead of memory and manual poking.
-**Current focus:** Phase 2 — iOS Client Logic Suites
+**Current focus:** Phase 02 — iOS Client Logic Suites
 
 ## Current Position
 
-Phase: 2 (iOS Client Logic Suites) — READY TO EXECUTE
-Plan: Not started
+Phase: 02 (iOS Client Logic Suites) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-10-14 — Phase 01 complete, transitioned to Phase 2
+Last activity: 2026-10-15 — Phase 02 execution started
 
 Progress: [███░░░░░░░] 25%
 
@@ -58,6 +58,7 @@ Progress: [███░░░░░░░] 25%
 |------|----------|-------|-------|
 | Phase 01 P01 | 9min | 3 tasks | 10 files |
 | Phase 01 P02 | 4min | 2 tasks | 7 files |
+| Phase 02 P01 | 9min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Recent decisions affecting current work:
 - [Phase 01]: D-13: gofmt -w the four drifted server files in a separate whitespace-only commit (57ba34e), after the two D-02 reconciliation commits; gofmt -l server/ empty at HEAD — Whitespace-only proven by empty git diff -w; keeps 'every existing check passes' true without weakening tests
 - [Phase 01]: Test-ios verdict comes only from the xcresult summary (Passed, 0 failed, >0 passed, >0 total); retry only on the cold-boot bootstrap signature — xcodebuild banner and exit code are unreliable (zero-test runs print TEST SUCCEEDED); proven by selfcheck case zero
 - [Phase 01]: Pinned simulator is shut down unconditionally at run end, even if pre-booted (D-07) — Locked user decision; ends a run.sh session on the same simulator, documented in script header (T-01-09)
+- [Phase 02]: [02-01] D-03 session default read as APIClient.shared with the existing ephemeral 15 s URLSession (not URLSession.shared); needs developer confirmation — URLSession.shared would change timeout to 60 s and add persistent cookies/cache, contradicting IOST-05 and the anonymity posture; reversible via one default argument
+- [Phase 02]: [02-01] OBS-1: a waiter who leaves before a match is never reported to the server (AppModel.leave only calls the backend when a session id exists); pinned by leaveWhileWaitingSendsNoLeaveCall, not changed — Server has no wait-leave endpoint; carry to Phase 4 ledger
 
 ### Pending Todos
 
@@ -96,6 +99,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-14T18:43:13.294Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-ios-client-logic-suites/02-CONTEXT.md
+Last session: 2026-10-15T18:18:20.295Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None

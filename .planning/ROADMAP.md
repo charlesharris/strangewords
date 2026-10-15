@@ -58,13 +58,13 @@ Plans:
   5. The whole iOS suite finishes in seconds with no real-time sleeps, and no test leaves a token behind in the app's shared `UserDefaults` container
 
 **Notes**: Expected finding: the late-poll race (poll loops call `apply()` after an `await` without checking `Task.isCancelled`). Expose it with a gated fake and fix it here under fix-as-we-go. Use `@Suite(.serialized)` for suites that share state.
-**Plans**: 4 plans
+**Plans**: 1/4 plans executed
 
 Plans are chained one per wave. Each plan proves itself through `scripts/test-ios.sh`, which boots and shuts down the single pinned "iPhone 16" simulator, and the harness has no concurrent-run lock.
 
 Plans:
 **Wave 1**
-- [ ] 02-01-PLAN.md — Tracer: an injectable TokenStore, AppModel `tokenStore:`/`pollInterval:` seams with task handles, and a gated FakeBackend. Covers the full AppModel arc and error paths, the APIClient `base:`/`session:` seam (ephemeral default kept), defaults-preservation tests, and the `UserDefaults.standard` guard (IOST-04, IOST-05)
+- [x] 02-01-PLAN.md — Tracer: an injectable TokenStore, AppModel `tokenStore:`/`pollInterval:` seams with task handles, and a gated FakeBackend. Covers the full AppModel arc and error paths, the APIClient `base:`/`session:` seam (ephemeral default kept), defaults-preservation tests, and the `UserDefaults.standard` guard (IOST-04, IOST-05)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 02-02-PLAN.md — The late-poll race, red then green: stale poll writes after `leave()` and stale action writes (submit, enter, begin-again, resume), fixed with `Task.isCancelled` plus an epoch checked in `apply()` (IOST-04, D-08/D-09/D-10)
@@ -113,6 +113,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4. Phases 2 and 3 depend only
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Clean Tree & Trustworthy iOS Harness | 2/2 | Complete    | 2026-10-14 |
-| 2. iOS Client Logic Suites | 0/4 | Planned | - |
+| 2. iOS Client Logic Suites | 1/4 | In Progress | - |
 | 3. Server End-to-End & Wire Contract | 0/TBD | Not started | - |
 | 4. One-Command Verify & Baseline | 0/TBD | Not started | - |
