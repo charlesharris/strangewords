@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: iOS Client Logic Suites
 status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-10-15T18:25:15.158Z"
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-10-15T18:32:33.593Z"
 last_activity: 2026-10-15
 last_activity_desc: Phase 02 execution started
-state_head: aed060598b891517f2ae5f6f2f1f9855663ad542
+state_head: 3b4760acb40a15c658b54f9e7c6517b5c6bdab4a
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
   percent: 25
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 02 (iOS Client Logic Suites) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-10-15 — Phase 02 execution started
 
@@ -60,6 +60,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 01 P02 | 4min | 2 tasks | 7 files |
 | Phase 02 P01 | 9min | 3 tasks | 8 files |
 | Phase 02 P02 | 4 min | 2 tasks | 2 files |
+| Phase 02 P03 | 6 min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ Recent decisions affecting current work:
 - [Phase 02]: [02-01] D-03 session default read as APIClient.shared with the existing ephemeral 15 s URLSession (not URLSession.shared); needs developer confirmation — URLSession.shared would change timeout to 60 s and add persistent cookies/cache, contradicting IOST-05 and the anonymity posture; reversible via one default argument
 - [Phase 02]: [02-01] OBS-1: a waiter who leaves before a match is never reported to the server (AppModel.leave only calls the backend when a session id exists); pinned by leaveWhileWaitingSendsNoLeaveCall, not changed — Server has no wait-leave endpoint; carry to Phase 4 ledger
 - [Phase 02]: Plan 02-02: stale-writer race fixed with a session epoch (bumped in begin/reset/dissolve) plus Task.isCancelled via isStale(e), checked after every await and first in apply(_:epoch:) — leave() never cancels action tasks, so the epoch covers begin/resume/submit while isCancelled covers poll tasks (D-08); seven red-first regression tests pin it
+- [Phase 02]: 02-03: LocalBackend.cleanLine ports sessions.CleanLine rule for rule (NFC, control reject, zero-width strip, scalar-counted 100 cap, server messages); banned-term screener stays server-only (DRFT-01)
+- [Phase 02]: 02-03: Mock leave/dismiss now dissolve and erase the poem (D-11 judgment, reversible, not a defect); turn-violation and idempotent-replay divergences pinned as DRIFT
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T18:25:15.136Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-10-15T18:32:33.570Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None

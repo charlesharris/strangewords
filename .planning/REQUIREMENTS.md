@@ -19,9 +19,9 @@ Requirements for this milestone. Each maps to roadmap phases. The "user" is the 
 
 - [ ] **IOST-01**: `Syllables` heuristic is covered by table-driven characterization tests (words, lines, edge cases, the 5/7/5 thresholds)
 - [ ] **IOST-02**: `PoemNaming` determinism is pinned with golden poem→name values (same poem → same name; hash/PRNG stability)
-- [ ] **IOST-03**: `LocalBackend` semantics tests mirror the server rules: pairing, round-robin turn order, line validation/rejection, idempotent resubmit, teardown
+- [x] **IOST-03**: `LocalBackend` semantics tests mirror the server rules: pairing, round-robin turn order, line validation/rejection, idempotent resubmit, teardown
 - [x] **IOST-04**: `AppModel` state machine is covered across the full arc (threshold → waiting → compose → reveal → dissolve → dissolved), including submit errors, partner-gone, and begin-again — with no real-time sleeps
-- [ ] **IOST-05**: Test seams exist as defaulted init parameters with unchanged app behavior: injectable poll interval, mock backend delays, API base, and `UserDefaults` for `TokenStore`
+- [x] **IOST-05**: Test seams exist as defaulted init parameters with unchanged app behavior: injectable poll interval, mock backend delays, API base, and `UserDefaults` for `TokenStore`
 
 ### End-to-End
 
@@ -84,9 +84,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HARN-03 | Phase 1 | Complete |
 | IOST-01 | Phase 2 | Pending |
 | IOST-02 | Phase 2 | Pending |
-| IOST-03 | Phase 2 | Pending |
+| IOST-03 | Phase 2 | Complete |
 | IOST-04 | Phase 2 | Complete |
-| IOST-05 | Phase 2 | Pending |
+| IOST-05 | Phase 2 | Complete |
 | E2E-01 | Phase 3 | Pending |
 | E2E-02 | Phase 3 | Pending |
 | CONT-01 | Phase 3 | Pending |
