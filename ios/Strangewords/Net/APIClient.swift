@@ -15,32 +15,43 @@ enum APIError: Error, Equatable {
 actor APIClient: Backend {
     static let shared = APIClient()
 
-    /// Base URL of the Go backend.
+    /// Base URL of the Go backend, injected for tests (Phase 2 D-03).
+    let base: URL
+    private let session: URLSession
+
+    /// Defaults preserve shipped behavior: `resolveBase(environment:)` over the
+    /// process environment, and the ephemeral 15-second session. `shared` uses both.
+    init(base: URL = APIClient.resolveBase(environment: ProcessInfo.processInfo.environment),
+         session: URLSession = APIClient.makeDefaultSession()) {
+        self.base = base
+        self.session = session
+    }
+
+    /// Resolve the base URL of the Go backend from an environment.
     ///
     /// Device and Release builds talk to the stable custom hostname, so the
     /// backend can be re-pointed via DNS without an App Store update. The
     /// simulator dev loop overrides it with `SW_API_BASE` (run.sh sets this to
     /// the local server for --solo/--two); the override never ships, since the
     /// environment is only populated by simctl during a dev launch.
-    // RED stubs (Phase 2 plan 01 Task 3): inert placeholders so the new tests
-    // compile and fail on their assertions. Replaced in the GREEN commit; nothing
-    // in production calls them yet.
-    static func resolveBase(environment: [String: String]) -> URL { URL(string: "about:blank")! }
-    static func makeDefaultSession() -> URLSession { URLSession(configuration: .ephemeral) }
-    init(base: URL = APIClient.resolveBase(environment: [:]), session: URLSession = APIClient.makeDefaultSession()) {}
-
-    let base: URL = {
-        if let override = ProcessInfo.processInfo.environment["SW_API_BASE"],
+    ///
+    /// Pure, so tests can pin the default without reading their own process
+    /// environment (which sets `SW_API_BASE` to a dead port).
+    static func resolveBase(environment: [String: String]) -> URL {
+        if let override = environment["SW_API_BASE"],
            let u = URL(string: override) {
             return u
         }
         return URL(string: "https://api.strangerwords.us")!
-    }()
-    private let session: URLSession = {
+    }
+
+    /// The production network session: ephemeral (no persistent cookies or cache,
+    /// part of the anonymity posture) with a 15-second request timeout.
+    static func makeDefaultSession() -> URLSession {
         let cfg = URLSessionConfiguration.ephemeral
         cfg.timeoutIntervalForRequest = 15
         return URLSession(configuration: cfg)
-    }()
+    }
 
     func enter(pushToken: String?) async throws -> EnterResponse {
         var body: [String: Any] = [:]
