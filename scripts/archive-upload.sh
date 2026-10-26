@@ -22,7 +22,7 @@
 #
 # Exit codes:
 #   0  uploaded
-#   1  an archive sanity gate failed (added in Task 2)
+#   1  an archive sanity gate failed (nothing was uploaded)
 #   2  environment or preflight failure (bad env value, partial ASC set, missing
 #      key file, missing tool). Refused before any test, xcodegen, archive, or write.
 #   other  a failing step (go test, test-ios.sh, xcodegen, xcodebuild) exits with
@@ -118,6 +118,12 @@ EXPORT="$OUT/export"
 #    fails on a team with no registered devices. The -exportArchive step below signs
 #    with the cloud-managed distribution certificate and profile (signingStyle
 #    automatic), which needs no registered device.
+#    Entitlements: the archived binary carries no code signature, so no entitlements
+#    are attached until the export step signs it. It has not been verified that the
+#    export step carries the App Attest environment entitlement
+#    (ios/Strangewords/Strangewords.entitlements) into the uploaded build. No App
+#    Attest client exists yet, so nothing depends on it today. Check the processed
+#    build's entitlements before shipping one.
 xcodebuild archive \
   -project ios/Strangewords.xcodeproj \
   -scheme Strangewords \
@@ -130,12 +136,51 @@ xcodebuild archive \
 
 APP="$ARCHIVE/Products/Applications/Strangewords.app"
 
+# Archive sanity gates: refuse to export or upload a bundle that App Store
+# validation would reject. Expected values come from ios/project.yml.
+# Reads one Info.plist key (or the sentinel <missing>) and exits 1 on a mismatch.
+check_plist() {
+  local key="$1" want="$2" got
+  got=$(plutil -extract "$key" raw "$APP/Info.plist" 2>/dev/null) || got="<missing>"
+  if [ "$got" != "$want" ]; then
+    echo "archive-upload: archived $key is $got, expected $want" >&2
+    exit 1
+  fi
+}
+
+if [ ! -d "$APP" ]; then
+  echo "archive-upload: archived app not found at $APP" >&2
+  exit 1
+fi
+# Required-reason API manifest that App Store Connect checks (quick task 261026-no9).
+if [ ! -f "$APP/PrivacyInfo.xcprivacy" ]; then
+  echo "archive-upload: archived app is missing PrivacyInfo.xcprivacy" >&2
+  exit 1
+fi
+# Matches deploymentTarget in ios/project.yml.
+check_plist MinimumOSVersion 17.0
+# Export-compliance flag (quick task 261026-no9).
+check_plist ITSAppUsesNonExemptEncryption false
+# App Store validation rejected the upload as an invalid bundle without this on
+# 2026-10-26: a portrait-only, iPad-capable app must opt out of multitasking.
+check_plist UIRequiresFullScreen true
+# PRODUCT_BUNDLE_IDENTIFIER in ios/project.yml.
+check_plist CFBundleIdentifier app.strangewords
+echo "archive-upload: archive sanity gates passed" >&2
+
 # Runtime export options: the committed plist has no teamID, so a run can never
 #     silently export under a stale team. plutil -insert fails if the key exists.
 cp ios/ExportOptions.plist "$OUT/ExportOptions.plist"
 plutil -insert teamID -string "$SW_TEAM_ID" "$OUT/ExportOptions.plist"
 
 # Export (signs) and upload.
+# Known flake: with Xcode-account auth, -exportArchive can transiently fail with
+# "Failed to Use Accounts" and a missing Xcode-Username, caused by a
+# DVTDeveloperAccountManager keychain read. Re-running the script usually succeeds,
+# and a re-run gets a fresh build number. The App Store Connect API key path
+# (ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_PATH) avoids the problem entirely.
+# There is deliberately no automatic retry: a blind retry would also mask a real
+# sign-in or keychain failure.
 xcodebuild -exportArchive \
   -archivePath "$ARCHIVE" \
   -exportOptionsPlist "$OUT/ExportOptions.plist" \
