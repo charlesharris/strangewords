@@ -95,7 +95,9 @@ for udid in $(xcrun simctl list devices booted \
   xcrun simctl shutdown "$udid" >/dev/null 2>&1 || true
 done
 
-open -a Simulator
+# Xcode 27 replaced Simulator.app with DeviceHub.app (com.apple.dt.Devices);
+# try the old name first so pre-27 Xcodes keep working.
+open -a Simulator 2>/dev/null || open -b com.apple.dt.Devices
 
 for name in "${DEVICES[@]}"; do
   udid="$(resolve_udid "$name")"

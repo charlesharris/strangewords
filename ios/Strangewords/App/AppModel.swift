@@ -44,7 +44,9 @@ final class AppModel {
     private(set) var keepsake: CoinedName?
 
     /// How often the poll loops ask the backend for news.
-    static let defaultPollInterval: Duration = .seconds(3) // [TUNABLE] plan.v1.md §10
+    // nonisolated: referenced from the nonisolated init's default argument; a
+    // Duration is immutable/Sendable, so this is safe and keeps Swift 6 happy.
+    nonisolated static let defaultPollInterval: Duration = .seconds(3) // [TUNABLE] plan.v1.md §10
 
     private let api: any Backend
     private let tokenStore: TokenStore
