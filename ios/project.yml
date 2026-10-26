@@ -16,6 +16,13 @@ targets:
   Strangewords:
     type: application
     platform: iOS
+    # PrivacyInfo.xcprivacy comes in through this sources entry: XcodeGen files it
+    # under the app's Resources phase, so it ships at the bundle root where App
+    # Store Connect looks for it. No explicit buildPhase entry is needed (adding
+    # one would list it twice). It declares the one required-reason API the app
+    # uses (UserDefaults, reason CA92.1, via TokenStore) and that nothing is
+    # tracked or collected. Any new required-reason API use, or a move to App
+    # Group defaults (reason 1C8F.1), must be added to the manifest.
     sources:
       - Strangewords
     info:
