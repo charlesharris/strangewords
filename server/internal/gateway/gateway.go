@@ -68,12 +68,16 @@ func (s *Server) Routes() http.Handler {
 	return metrics.HTTPMiddleware(h)
 }
 
+// limiterMaxIdle is the idle period after which a per-IP rate-limit bucket is
+// forgotten. privacy.html cites it; privacy_test.go pins the wording.
+const limiterMaxIdle = 10 * time.Minute
+
 // StartMaintenance launches background upkeep (the rate-limiter idle sweep). It
 // runs for the process lifetime; call once after New. No-op when rate limiting
 // is disabled.
 func (s *Server) StartMaintenance() {
 	if s.limiter != nil {
-		go s.limiter.runJanitor(time.Minute, 10*time.Minute)
+		go s.limiter.runJanitor(time.Minute, limiterMaxIdle)
 	}
 }
 

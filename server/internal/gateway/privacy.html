@@ -61,6 +61,61 @@
 <main>
 <p>Stranger Words lets you write a three-line poem with a stranger and then lets it go. It is built to know as little about you as possible.</p>
 
+<h2>No accounts, no identity</h2>
+<p>There are no accounts. The app never asks for your name, email, phone number, contacts, photos, or location.</p>
+<p>When you begin, our server issues a random 32-byte token. It is the only thing that lets your phone take part in your poem. The token is not linked to who you are, and the stranger never sees it. They see only the poem.</p>
+<p>The token is deleted from our database when the poem dissolves, or it expires on its own.</p>
+
+<h2>Your poem is ephemeral</h2>
+<p>Your lines are stored temporarily in our database, only so both writers can see the poem. We keep no poem history and no archive.</p>
+<ul>
+<li><strong>Waiting.</strong> If no stranger arrives, your place in line is erased after 15 minutes.</li>
+<li><strong>An unfinished poem</strong> is erased automatically within 90 minutes of its last activity, and immediately if either writer leaves.</li>
+<li><strong>A finished poem</strong> is shown during a two-minute reveal window and then erased, and it is erased right away once both writers dismiss it.</li>
+<li><strong>A retry cache.</strong> So that a resubmitted line is not doubled, we keep a short-lived copy of the latest response. It lasts at most 10 minutes and is erased with the poem.</li>
+</ul>
+
+<h2>The one exception: reported poems</h2>
+<p>If a poem is reported as abusive while it is still live, our server writes a report to its server logs for moderation review. The report contains:</p>
+<ul>
+<li>the poem's lines and its form</li>
+<li>the poem's random session ID and the number of writers</li>
+<li>which of the two writers filed it, recorded as a seat number (first or second to join), not an identity</li>
+<li>an optional reason of up to 280 characters</li>
+<li>when the poem was finished and when it was reported</li>
+</ul>
+<p>It never includes either writer's token. This is the only way a poem's words outlive the poem. A report is kept in our hosting provider's log storage so that we can review it.</p>
+
+<h2>What our server handles while it runs</h2>
+<ul>
+<li><strong>IP address.</strong> To prevent abuse, the server counts requests per IP address. That count lives only in the server's memory. It is never written to our database or our logs, and it is forgotten after 10 minutes of inactivity or whenever the server restarts.</li>
+<li><strong>Server logs</strong> record operational events such as startup and errors. Our server keeps no per-request access log. It does not write your IP address, your token, or your poem's lines to its server logs, except for reported poems as described above.</li>
+<li><strong>Metrics</strong> are aggregate counts and timings, such as how many poems were finished and how fast requests were served. They are labeled by endpoint, never by person, session, or IP address.</li>
+<li><strong>No cookies.</strong> The server sets none, and the app's network session is ephemeral, with no persistent cookies or cache.</li>
+</ul>
+
+<h2>On your device</h2>
+<ul>
+<li>The app keeps your token and current session ID in its private app storage so a poem can resume if the app closes. Both are erased when the poem ends.</li>
+<li>The keepsake name is coined on your device from the words of the finished poem and is never sent to us.</li>
+<li>No analytics, no advertising, no tracking, and no third-party SDKs.</li>
+<li>The app does not currently use push notifications and sends no device push token.</li>
+</ul>
+
+<h2>The robot poet</h2>
+<p>If you choose to write with our robot poet, when it is offered, its lines come from software running on our own server. Your lines are not sent to any outside AI service.</p>
+
+<h2>Who else is involved</h2>
+<p>Only infrastructure:</p>
+<ul>
+<li>Fly.io hosts our server, and its network necessarily handles your IP address to route your connection.</li>
+<li>Upstash, a managed Redis service provisioned through Fly.io, holds the short-lived data described above.</li>
+</ul>
+<p>Our server sends your data nowhere else. Lines are checked against a built-in word list on our own server, not by an outside moderation service. We do not sell or share data.</p>
+
+<h2>Changes to this policy</h2>
+<p>If how Stranger Words handles data changes, we will update this page and its effective date.</p>
+
 <h2>Contact</h2>
 <p>Questions about privacy are welcome at <a href="mailto:privacy@strangewords.app">privacy@strangewords.app</a>.</p>
 </main>
