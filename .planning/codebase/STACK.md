@@ -26,7 +26,7 @@ last_mapped_at: 2026-10-08
 
 **iOS:**
 - iOS 17.0 minimum deployment target (`ios/project.yml`), iPhone and iPad (`TARGETED_DEVICE_FAMILY: "1,2"`), though orientation is portrait-only in `Info.plist` settings
-- Bundle identifier `com.strangerwords.us`, team `2M6QRD8T3A`, display name "Stranger Words", marketing version 0.1.0 (build 1)
+- Bundle identifier `app.strangewords`, team `2M6QRD8T3A`, display name "Stranger Words", marketing version 0.1.0 (build 1)
 
 **Package Managers:**
 - Go modules - `server/go.mod`, lockfile `server/go.sum` present
@@ -98,11 +98,11 @@ Production secrets are set with `fly secrets set` (not stored in the repo); `.en
 - Entitlements file `ios/Strangewords/Strangewords.entitlements` sets `com.apple.developer.devicecheck.appattest-environment` from that build setting
 - `NSAppTransportSecurity.NSAllowsLocalNetworking: true` (dev-only plain HTTP to local backend)
 - Dev-only environment flags read at launch: `SW_LOCAL_MOCK`, `SW_DEV`, `SW_FORCE_THEME`, `SW_FORCE_TOD`, `SW_DEV_DISSOLVE` (`ios/Strangewords/App/Dev.swift`)
-- Backend base URL hardcoded in `ios/Strangewords/Net/APIClient.swift` as `https://api.strangerwords.us`
+- Backend base URL hardcoded in `ios/Strangewords/Net/APIClient.swift` as `https://api.strangewords.app`
 
 **Build:**
 - `server/Dockerfile` - multi-stage build
-- `server/fly.toml` - Fly app `strangerwords`, region `sjc`, `shared-cpu-1x` / 256 MB VM, `min_machines_running = 1`, health check `GET /healthz`
+- `server/fly.toml` - Fly app `strangewords`, region `sjc`, `shared-cpu-1x` / 256 MB VM, `min_machines_running = 1`, health check `GET /healthz`
 - `server/.dockerignore` (referenced in `docs/STATUS.md`)
 - `ios/project.yml` - XcodeGen spec, iOS 17.0 target
 - `.github/workflows/fly-deploy.yml` - push-to-deploy on `main` for `server/**` changes
@@ -116,7 +116,7 @@ Production secrets are set with `fly secrets set` (not stored in the repo); `.en
 - Optional: `flyctl` for manual deploys
 
 **Production:**
-- Fly.io, app `strangerwords`, primary region `sjc`, public at `https://strangerwords.fly.dev` (`docs/STATUS.md`); intended custom host `api.strangerwords.us` (cert/DNS step still pending per `docs/STATUS.md`)
+- Fly.io, app `strangewords` (`server/fly.toml`; not yet created, and the live backend stays on the legacy Fly app until the cutover in `server/DEPLOY.md`), primary region `sjc`; intended custom host `api.strangewords.app` (cert/DNS pending per `docs/STATUS.md`)
 - Managed Redis reached via `SW_REDIS_ADDR` secret
 - Deploy trigger: GitHub Actions `fly-deploy.yml` using `FLY_API_TOKEN` secret, running `flyctl deploy --remote-only` from `server/`
 

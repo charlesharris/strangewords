@@ -102,7 +102,7 @@ last_mapped_at: 2026-10-08
 
 **Network:**
 - Location: `ios/Strangewords/Net/`
-- Contains: `Backend.swift` (protocol: `enter`, `waiting`, `getSession`, `submitLine`, `leave`, `dismiss`), `APIClient.swift` (`actor`, production HTTPS client; base defaults to `https://api.strangerwords.us`, overridable with `SW_API_BASE`), `LocalBackend.swift` (`actor`, on-device fake stranger), `Models.swift` (Codable `SessionView`, `FormView`, `EnterResponse`, `WaitingResponse`, `ServerError`), `Keychain.swift` (`TokenStore`, backed by UserDefaults despite the filename).
+- Contains: `Backend.swift` (protocol: `enter`, `waiting`, `getSession`, `submitLine`, `leave`, `dismiss`), `APIClient.swift` (`actor`, production HTTPS client; base defaults to `https://api.strangewords.app`, overridable with `SW_API_BASE`), `LocalBackend.swift` (`actor`, on-device fake stranger), `Models.swift` (Codable `SessionView`, `FormView`, `EnterResponse`, `WaitingResponse`, `ServerError`), `Keychain.swift` (`TokenStore`, backed by UserDefaults despite the filename).
 
 **Feature views:**
 - Location: `ios/Strangewords/Features/{Threshold,Waiting,Compose,Reveal,Dissolved}/`

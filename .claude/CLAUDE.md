@@ -37,7 +37,7 @@ The current milestone is not a new feature: it is **verifying the current state 
 - Static binary (`CGO_ENABLED=0`, `-trimpath -ldflags="-s -w"`) run in `alpine:3.20` as non-root user `app` (uid 10001)
 - Runtime memory tuned via `GOMEMLIMIT = "220MiB"` in `server/fly.toml`; `go.uber.org/automaxprocs` aligns GOMAXPROCS to the cgroup CPU quota
 - iOS 17.0 minimum deployment target (`ios/project.yml`), iPhone and iPad (`TARGETED_DEVICE_FAMILY: "1,2"`), though orientation is portrait-only in `Info.plist` settings
-- Bundle identifier `com.strangerwords.us`, team `2M6QRD8T3A`, display name "Stranger Words", marketing version 0.1.0 (build 1)
+- Bundle identifier `app.strangewords`, team `2M6QRD8T3A`, display name "Stranger Words", marketing version 0.1.0 (build 1)
 - Go modules - `server/go.mod`, lockfile `server/go.sum` present
 - Swift Package Manager - not used; the iOS app has no third-party dependencies (per `docs/STATUS.md`)
 - XcodeGen - generates `ios/Strangewords.xcodeproj` from `ios/project.yml`; the generated project and `Info.plist` are gitignored
@@ -86,9 +86,9 @@ The current milestone is not a new feature: it is **verifying the current state 
 - Entitlements file `ios/Strangewords/Strangewords.entitlements` sets `com.apple.developer.devicecheck.appattest-environment` from that build setting
 - `NSAppTransportSecurity.NSAllowsLocalNetworking: true` (dev-only plain HTTP to local backend)
 - Dev-only environment flags read at launch: `SW_LOCAL_MOCK`, `SW_DEV`, `SW_FORCE_THEME`, `SW_FORCE_TOD`, `SW_DEV_DISSOLVE` (`ios/Strangewords/App/Dev.swift`)
-- Backend base URL hardcoded in `ios/Strangewords/Net/APIClient.swift` as `https://api.strangerwords.us`
+- Backend base URL hardcoded in `ios/Strangewords/Net/APIClient.swift` as `https://api.strangewords.app`
 - `server/Dockerfile` - multi-stage build
-- `server/fly.toml` - Fly app `strangerwords`, region `sjc`, `shared-cpu-1x` / 256 MB VM, `min_machines_running = 1`, health check `GET /healthz`
+- `server/fly.toml` - Fly app `strangewords`, region `sjc`, `shared-cpu-1x` / 256 MB VM, `min_machines_running = 1`, health check `GET /healthz`
 - `server/.dockerignore` (referenced in `docs/STATUS.md`)
 - `ios/project.yml` - XcodeGen spec, iOS 17.0 target
 - `.github/workflows/fly-deploy.yml` - push-to-deploy on `main` for `server/**` changes
@@ -99,7 +99,7 @@ The current milestone is not a new feature: it is **verifying the current state 
 - Docker (for local Redis via `make redis`), or any reachable Redis 7 instance
 - macOS with Xcode, `xcodegen` (Homebrew), and an iOS 17+ simulator for the app
 - Optional: `flyctl` for manual deploys
-- Fly.io, app `strangerwords`, primary region `sjc`, public at `https://strangerwords.fly.dev` (`docs/STATUS.md`); intended custom host `api.strangerwords.us` (cert/DNS step still pending per `docs/STATUS.md`)
+- Fly.io, app `strangewords` (`server/fly.toml`; not yet created, and the live backend stays on the legacy Fly app until the cutover in `server/DEPLOY.md`), primary region `sjc`; intended custom host `api.strangewords.app` (cert/DNS pending per `docs/STATUS.md`)
 - Managed Redis reached via `SW_REDIS_ADDR` secret
 - Deploy trigger: GitHub Actions `fly-deploy.yml` using `FLY_API_TOKEN` secret, running `flyctl deploy --remote-only` from `server/`
 
@@ -231,7 +231,7 @@ The current milestone is not a new feature: it is **verifying the current state 
 - Contains: `StrangewordsApp.swift` (entry), `AppModel.swift` (state machine), `RootView.swift` (theme + time-of-day environment, phase switch, dev chips, `SceneDepthOverlay`), `Haptics.swift`, `Dev.swift`.
 - Depends on: `Net/` (via `Backend`), `Design/`, `Features/`.
 - Location: `ios/Strangewords/Net/`
-- Contains: `Backend.swift` (protocol: `enter`, `waiting`, `getSession`, `submitLine`, `leave`, `dismiss`), `APIClient.swift` (`actor`, production HTTPS client; base defaults to `https://api.strangerwords.us`, overridable with `SW_API_BASE`), `LocalBackend.swift` (`actor`, on-device fake stranger), `Models.swift` (Codable `SessionView`, `FormView`, `EnterResponse`, `WaitingResponse`, `ServerError`), `Keychain.swift` (`TokenStore`, backed by UserDefaults despite the filename).
+- Contains: `Backend.swift` (protocol: `enter`, `waiting`, `getSession`, `submitLine`, `leave`, `dismiss`), `APIClient.swift` (`actor`, production HTTPS client; base defaults to `https://api.strangewords.app`, overridable with `SW_API_BASE`), `LocalBackend.swift` (`actor`, on-device fake stranger), `Models.swift` (Codable `SessionView`, `FormView`, `EnterResponse`, `WaitingResponse`, `ServerError`), `Keychain.swift` (`TokenStore`, backed by UserDefaults despite the filename).
 - Location: `ios/Strangewords/Features/{Threshold,Waiting,Compose,Reveal,Dissolved}/`
 - Contains: one SwiftUI view per phase. `SplashLines.swift` holds the randomized tagline. Views are pure functions of `AppModel.phase`.
 - Location: `ios/Strangewords/Design/`

@@ -13,7 +13,7 @@ last_mapped_at: 2026-10-08
 - App Attest (DeviceCheck) - device attestation for the iOS client.
   - Client side: entitlement `com.apple.developer.devicecheck.appattest-environment` in `ios/Strangewords/Strangewords.entitlements`, environment set per build config in `ios/project.yml` (`development` for Debug, `production` for Release).
   - Server side: config field `SW_APP_ATTEST_APPID` is loaded into `Config.AppAttestAppID` in `server/internal/config/config.go`, but no code in `server/internal/gateway/` or elsewhere reads it. No attestation or assertion validation is implemented yet.
-  - App ID expected: `2M6QRD8T3A.com.strangerwords.us`.
+  - App ID expected: `2M6QRD8T3A.app.strangewords`.
 
 **No other third-party SaaS, LLM, analytics, or payment APIs were detected.** Searches of `server/` and `ios/Strangewords/` for common provider SDKs returned nothing. The iOS app has no third-party Swift packages.
 
@@ -66,8 +66,8 @@ last_mapped_at: 2026-10-08
 ## CI/CD & Deployment
 
 **Hosting:**
-- Fly.io, app `strangerwords`, region `sjc`, one `shared-cpu-1x` 256 MB machine kept warm (`server/fly.toml`).
-- Public hostname `strangerwords.fly.dev`; planned custom host `api.strangerwords.us` (DNS and certificate step pending, `docs/STATUS.md`).
+- Fly.io, app `strangewords`, region `sjc`, one `shared-cpu-1x` 256 MB machine kept warm (`server/fly.toml`).
+- Public hostname `strangewords.fly.dev` once the app is created (the legacy Fly app serves until the cutover in `server/DEPLOY.md`); planned custom host `api.strangewords.app` (DNS and certificate step pending, `docs/STATUS.md`).
 - Deploy runbook: `server/DEPLOY.md`.
 
 **CI Pipeline:**
@@ -115,7 +115,7 @@ last_mapped_at: 2026-10-08
 
 **Outgoing:**
 - None at runtime. The server makes no outbound HTTP calls (APNs is the only planned one).
-- Clients call the backend. The iOS app's base URL is `https://api.strangerwords.us` in `ios/Strangewords/Net/APIClient.swift`, with a mock alternative `ios/Strangewords/Net/LocalBackend.swift` selected by `SW_LOCAL_MOCK`.
+- Clients call the backend. The iOS app's base URL is `https://api.strangewords.app` in `ios/Strangewords/Net/APIClient.swift`, with a mock alternative `ios/Strangewords/Net/LocalBackend.swift` selected by `SW_LOCAL_MOCK`.
 - The robot test client `server/cmd/bot/main.go` calls the backend at `-base` (default `http://127.0.0.1:8080`).
 
 ---

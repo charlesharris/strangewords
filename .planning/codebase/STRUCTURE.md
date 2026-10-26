@@ -43,7 +43,7 @@ strangewords/                         # repo root (git, branch main)
 │   │   ├── sessions/                 # pure domain: session, form, policy, validation, screener
 │   │   └── store/                    # Redis persistence + TTLs
 │   ├── Dockerfile                    # static binary on alpine, non-root
-│   ├── fly.toml                      # Fly app "strangerwords", region sjc, /healthz check
+│   ├── fly.toml                      # Fly app "strangewords", region sjc, /healthz check
 │   ├── docker-compose.yml            # local Redis (and Postgres in Phase 5)
 │   ├── Makefile                      # run, test, and local dev targets
 │   ├── DEPLOY.md                     # authoritative deploy runbook
@@ -131,7 +131,7 @@ strangewords/                         # repo root (git, branch main)
 - `server/internal/config/config.go`: Go env config (`SW_ADDR`, `SW_DEBUG_ADDR`, `SW_REDIS_ADDR`, `SW_REDIS_PASSWORD`, `SW_REDIS_TLS`, and others).
 - `server/fly.toml`: Fly.io app definition.
 - `server/docker-compose.yml`: local Redis.
-- `ios/project.yml`: XcodeGen project (bundle id `com.strangerwords.us`, deployment target iOS 17.0, `UIAppFonts`).
+- `ios/project.yml`: XcodeGen project (bundle id `app.strangewords`, deployment target iOS 17.0, `UIAppFonts`).
 - `ios/Strangewords/Strangewords.entitlements`: App Attest entitlement (referenced by `CODE_SIGN_ENTITLEMENTS`).
 - `.github/workflows/fly-deploy.yml`: CI deploy.
 
