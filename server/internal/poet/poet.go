@@ -19,6 +19,10 @@ type Poet struct {
 	theme int             // index into themes
 	used  map[string]bool // words already in the poem (membership only)
 	mine  map[string]bool // exact lines this Poet has returned (membership only)
+
+	lastEcho       string  // word echoed into the latest line, or ""
+	echoChance     float64 // odds of trying an echo at all
+	adjacentChance float64 // odds an echoed bank word becomes a theme sibling
 }
 
 // New returns a Poet for seed. Its first RNG draw picks the theme, so the same
@@ -28,6 +32,9 @@ func New(seed uint64) *Poet {
 		rng:  rand.New(rand.NewPCG(seed, seed^0x9E3779B97F4A7C15)),
 		used: map[string]bool{},
 		mine: map[string]bool{},
+
+		echoChance:     defaultEchoChance,
+		adjacentChance: defaultAdjacentChance,
 	}
 	p.theme = p.rng.IntN(len(themes))
 	return p
@@ -40,6 +47,7 @@ func (p *Poet) Theme() string { return themes[p.theme].name }
 // the poem so far. It never blocks and never returns an empty string. A target
 // of 0 or less (free verse) gets a 5- or 7-syllable line.
 func (p *Poet) Line(target int, previous []string) string {
+	p.lastEcho = ""
 	for _, l := range previous {
 		for _, w := range words(l) {
 			p.used[w] = true
@@ -47,6 +55,9 @@ func (p *Poet) Line(target int, previous []string) string {
 	}
 	if target <= 0 {
 		target = 5 + 2*p.rng.IntN(2)
+	}
+	if line, ok := p.echoLine(target, previous); ok {
+		return p.record(line)
 	}
 	if line, ok := p.compose(target); ok {
 		return p.record(line)
@@ -74,7 +85,7 @@ func words(line string) []string {
 
 // field is one token of a template: a literal word (kind 0) or a slot.
 type field struct {
-	kind  byte   // 0 literal; 'N' noun, 'A' adjective, 'V' verb, 'P' preposition
+	kind  byte   // 0 literal; 'N' noun, 'A' adjective, 'V' verb, 'P' preposition, 'E' echo
 	text  string // the literal word
 	trail string // punctuation attached after the token
 }
@@ -115,15 +126,23 @@ var generalTemplates = parseTemplates(
 	"{A} {N} {P} the {A} {N}",
 )
 
-// literalCost is the syllables of t's literal words.
-func literalCost(t template) int {
+// literalCost is the syllables of t's literal words plus the echo word, if any.
+func literalCost(t template, echo string) int {
 	n := 0
 	for _, f := range t {
-		if f.kind == 0 {
+		switch f.kind {
+		case 0:
 			n += Count(f.text)
+		case 'E':
+			n += Count(echo)
 		}
 	}
 	return n
+}
+
+// isSlot reports whether kind is a slot the solver fills from a bank.
+func isSlot(kind byte) bool {
+	return kind == 'N' || kind == 'A' || kind == 'V' || kind == 'P'
 }
 
 func (p *Poet) bank(kind byte) *bySyl {
@@ -142,7 +161,7 @@ func (p *Poet) bank(kind byte) *bySyl {
 // span is the least and most syllables t's slots can sum to.
 func (p *Poet) span(t template) (lo, hi int) {
 	for _, f := range t {
-		if f.kind == 0 {
+		if !isSlot(f.kind) {
 			continue
 		}
 		b := p.bank(f.kind)
@@ -170,7 +189,7 @@ func (p *Poet) compose(target int) (string, bool) {
 	for _, strict := range []bool{true, false} {
 		for _, i := range order {
 			t := generalTemplates[i]
-			if ws, ok := p.fill(t, target-literalCost(t), strict); ok {
+			if ws, ok := p.fill(t, target-literalCost(t, ""), "", strict); ok {
 				return p.render(t, ws), true
 			}
 		}
@@ -185,7 +204,7 @@ func (p *Poet) nearest(target int) (string, bool) {
 	bestD := -1
 	sums := make([]int, len(generalTemplates))
 	for i, t := range generalTemplates {
-		need := target - literalCost(t)
+		need := target - literalCost(t, "")
 		lo, hi := p.span(t)
 		sums[i] = min(max(need, lo), hi)
 		d := sums[i] - need
@@ -201,7 +220,7 @@ func (p *Poet) nearest(target int) (string, bool) {
 	}
 	i := best[p.rng.IntN(len(best))]
 	t := generalTemplates[i]
-	ws, ok := p.fill(t, sums[i], false)
+	ws, ok := p.fill(t, sums[i], "", false)
 	if !ok {
 		return "", false
 	}
@@ -210,13 +229,17 @@ func (p *Poet) nearest(target int) (string, bool) {
 
 // fill chooses a word for every slot of t so the slots total sum syllables. In
 // strict mode every word must be new to the poem; otherwise a bucket with no
-// new word falls back to a reused one. It reports false when no choice works.
-func (p *Poet) fill(t template, sum int, strict bool) ([]string, bool) {
+// new word falls back to a reused one. An {E} field renders as echo. It reports
+// false when no choice works.
+func (p *Poet) fill(t template, sum int, echo string, strict bool) ([]string, bool) {
 	ws := make([]string, len(t))
 	var slots []int
 	for i, f := range t {
-		if f.kind != 0 {
+		switch {
+		case isSlot(f.kind):
 			slots = append(slots, i)
+		case f.kind == 'E':
+			ws[i] = echo
 		}
 	}
 	// lo[k], hi[k]: least and most the slots from k onward can sum to.
