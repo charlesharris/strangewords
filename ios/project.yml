@@ -29,6 +29,12 @@ targets:
       path: Strangewords/Info.plist
       properties:
         CFBundleDisplayName: Stranger Words
+        # The app's only encryption is the OS-provided HTTPS via URLSession, which
+        # is exempt from export documentation. Declaring it here skips App Store
+        # Connect's per-build encryption questionnaire. Revisit if the app ever
+        # adds its own cryptography beyond authentication (e.g. end-to-end
+        # encrypting poem lines); App Attest is authentication and stays exempt.
+        ITSAppUsesNonExemptEncryption: false
         # Bundled type voices (Resources/Fonts). Fraunces is the display serif
         # (it optically sizes itself via its opsz axis); Inter is the body/chrome
         # sans. iOS auto-registers anything listed here at launch.
