@@ -120,3 +120,13 @@ Phases execute in numeric order: 1 → 2 → 3 → 4. Phases 2 and 3 depend only
 | 2. iOS Client Logic Suites | 4/6 | In Progress | - |
 | 3. Server End-to-End & Wire Contract | 0/TBD | Not started | - |
 | 4. One-Command Verify & Baseline | 0/TBD | Not started | - |
+
+### Phase 5: Opt-In Robot Poet Collaboration
+
+**Goal:** A user can opt in (default OFF) to being paired with the robot poet when no human is waiting. Wire-contract flag on POST /v1/enter (allowBot); matchmaker segregation so the bot only ever pairs with opted-in participants; the app's first Settings surface with the persisted toggle; bot disclosure in the session UI; LocalBackend mirrors the new contract; tests on both sides. Locked decisions: strict opt-in default OFF; bot disclosed in-session; generation uses server/internal/poet (no external AI).
+**Requirements**: TBD
+**Depends on:** Phase 4
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 5 to break down)

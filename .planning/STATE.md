@@ -4,10 +4,10 @@ current_phase: 02
 current_phase_name: iOS Client Logic Suites
 status: verifying
 stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-10-26T23:43:50.752Z"
+last_updated: "2026-10-26T23:48:38.528Z"
 last_activity: 2026-10-26
 last_activity_desc: Phase 02 execution started
-state_head: 9147a60c243ce3cf2ed0de3eabecfd198a40706c
+state_head: e00a5806f4738afacc2f52305e3413fc4bae5ccb
 progress:
   total_phases: 4
   completed_phases: 1
@@ -108,6 +108,11 @@ None yet.
 | 261026-og8 | Port brewfighter archive-upload script for TestFlight pushes | 2026-10-26 | 16177e0 | [261026-og8-port-brewfighter-archive-upload-script-f](./quick/261026-og8-port-brewfighter-archive-upload-script-f/) |
 | 261026-p8f | Serve a privacy policy page from the backend | 2026-10-26 | 4b0f71c | [261026-p8f-serve-a-privacy-policy-page-from-the-bac](./quick/261026-p8f-serve-a-privacy-policy-page-from-the-bac/) |
 | 261026-p8l | Upgrade the robot poet to a generative grammar | 2026-10-26 | 9147a60 | [261026-p8l-upgrade-the-robot-poet-to-a-generative-g](./quick/261026-p8l-upgrade-the-robot-poet-to-a-generative-g/) |
+| 8 | fast: fix run.sh Simulator launch for Xcode 27 (DeviceHub) + Swift 6 isolation warning | 2026-10-26 | e00a580 | — |
+
+### Roadmap Evolution
+
+- Phase 5 added: Opt-In Robot Poet Collaboration (2026-10-26)
 
 ## Deferred Items
 
