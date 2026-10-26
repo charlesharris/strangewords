@@ -4,10 +4,10 @@ current_phase: 02
 current_phase_name: iOS Client Logic Suites
 status: verifying
 stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-10-26T22:35:59.164Z"
+last_updated: "2026-10-26T22:52:04.182Z"
 last_activity: 2026-10-26
 last_activity_desc: Phase 02 execution started
-state_head: ccffe483811849ee2f00b23ba9a10065511fa97d
+state_head: 16177e0f48d8dd284034050c3de59db52610412d
 progress:
   total_phases: 4
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 Phase: 02 (iOS Client Logic Suites) — EXECUTING
 Plan: 4 of 4
 Status: Phase complete — ready for verification
-Last activity: 2026-10-26 - Completed quick task 261026-no9: Add App Store privacy manifest and export compliance flag
+Last activity: 2026-10-26 - Completed quick task 261026-og8: Port brewfighter archive-upload script for TestFlight pushes
 
 Progress: [███░░░░░░░] 25%
 
@@ -105,6 +105,7 @@ None yet.
 | 261026-nd8 | Repin dev scripts to current-generation simulators for Xcode 27 | 2026-10-26 | fe34596 | [261026-nd8-repin-dev-scripts-to-current-generation-](./quick/261026-nd8-repin-dev-scripts-to-current-generation-/) |
 | 261026-no9 | Add App Store privacy manifest and export compliance flag | 2026-10-26 | 9920b1b | [261026-no9-add-app-store-privacy-manifest-and-expor](./quick/261026-no9-add-app-store-privacy-manifest-and-expor/) |
 | 4 | fast: opt portrait-only iPad out of multitasking (UIRequiresFullScreen) for App Store validation | 2026-10-26 | ccffe48 | — |
+| 261026-og8 | Port brewfighter archive-upload script for TestFlight pushes | 2026-10-26 | 16177e0 | [261026-og8-port-brewfighter-archive-upload-script-f](./quick/261026-og8-port-brewfighter-archive-upload-script-f/) |
 
 ## Deferred Items
 
