@@ -4,10 +4,10 @@ current_phase: 02
 current_phase_name: iOS Client Logic Suites
 status: verifying
 stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-10-15T18:38:49.086Z"
-last_activity: 2026-10-15
+last_updated: "2026-10-26T21:49:16.525Z"
+last_activity: 2026-10-26
 last_activity_desc: Phase 02 execution started
-state_head: e1c1f794c1b32df1e5568373b211d72929a35808
+state_head: 8a951430463ee433fb1be554a5dc6a0a6ecd4abc
 progress:
   total_phases: 4
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 Phase: 02 (iOS Client Logic Suites) — EXECUTING
 Plan: 4 of 4
 Status: Phase complete — ready for verification
-Last activity: 2026-10-15 — Phase 02 execution started
+Last activity: 2026-10-26 - Completed quick task 261026-n2i: Rebrand backend host and bundle id for the strangewords.app domain switch
 
 Progress: [███░░░░░░░] 25%
 
@@ -96,6 +96,12 @@ None yet.
 - [Phase 4]: No iOS 17.x simulator runtime is installed, so the 17.0 deployment target is tested only on 18.6. Record this on the not-verified list or install a runtime.
 - [Phase 4]: Carry-overs from Phase 1 verification: cold-boot retry path unexercised (override recorded in 01-VERIFICATION.md); App Attest entitlements not applied in unsigned test runs; no concurrent-run lock between harness runs.
 - [Phase 4]: Code review 01-REVIEW.md left 4 advisory warnings open (stale SW_VERIFY_OUT verdicts, boot failure reported as exit 1, nondeterministic simulator pick, fail-open AppAttestAppID undocumented in DEPLOY.md) — see 01-REVIEW-DISPOSITION.md.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 261026-n2i | Rebrand backend host and bundle id for the strangewords.app domain switch | 2026-10-26 | 8a95143 | [261026-n2i-rebrand-backend-host-and-bundle-id-for-t](./quick/261026-n2i-rebrand-backend-host-and-bundle-id-for-t/) |
 
 ## Deferred Items
 
