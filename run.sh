@@ -28,14 +28,14 @@ BASE="http://127.0.0.1:8080"
 # Default: a single simulator in mock mode — an on-device stranger auto-replies
 # (no backend needed). Dev controls (the time-of-day toggle) are on for every
 # run.sh launch, regardless of mode.
-DEVICES=("iPhone 16")
+DEVICES=("iPhone 17")
 MOCK=1
 export SIMCTL_CHILD_SW_DEV=1
 for a in "$@"; do
   case "$a" in
-    --solo|--one)  DEVICES=("iPhone 16"); MOCK=0 ;;                  # one sim, real backend (live_test.sh + robot poet)
-    --two|--pair)  DEVICES=("iPhone 16" "iPhone 16 Pro"); MOCK=0 ;;  # two sims, be both strangers (real backend)
-    --mock)        DEVICES=("iPhone 16"); MOCK=1 ;;                  # explicit; same as the default
+    --solo|--one)  DEVICES=("iPhone 17"); MOCK=0 ;;                  # one sim, real backend (live_test.sh + robot poet)
+    --two|--pair)  DEVICES=("iPhone 17" "iPhone 17e"); MOCK=0 ;;     # two sims, be both strangers (real backend)
+    --mock)        DEVICES=("iPhone 17"); MOCK=1 ;;                  # explicit; same as the default
     --morning|--afternoon|--night) export SIMCTL_CHILD_SW_FORCE_TOD="${a#--}" ;;
     *) echo "unknown flag: $a"; exit 2 ;;
   esac
@@ -85,7 +85,7 @@ for name in "${DEVICES[@]}"; do
 done
 in_targets() { case " $TARGET_UDIDS " in *" $1 "*) return 0 ;; esac; return 1; }
 
-# Shut down every *other* booted simulator so a leftover (e.g. an iPhone 16 Plus
+# Shut down every *other* booted simulator so a leftover (e.g. an iPhone Air
 # from a previous session) doesn't launch alongside ours and clutter the run.
 # Only already-booted devices are touched; nothing is deleted.
 for udid in $(xcrun simctl list devices booted \
