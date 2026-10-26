@@ -4,10 +4,10 @@ current_phase: 02
 current_phase_name: iOS Client Logic Suites
 status: verifying
 stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-10-26T21:49:16.525Z"
+last_updated: "2026-10-26T22:19:56.501Z"
 last_activity: 2026-10-26
 last_activity_desc: Phase 02 execution started
-state_head: 8a951430463ee433fb1be554a5dc6a0a6ecd4abc
+state_head: fe3459653905eaa25b86d2006367aabdc88972ed
 progress:
   total_phases: 4
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 Phase: 02 (iOS Client Logic Suites) — EXECUTING
 Plan: 4 of 4
 Status: Phase complete — ready for verification
-Last activity: 2026-10-26 - Completed quick task 261026-n2i: Rebrand backend host and bundle id for the strangewords.app domain switch
+Last activity: 2026-10-26 - Completed quick task 261026-nd8: Repin dev scripts to current-generation simulators for Xcode 27
 
 Progress: [███░░░░░░░] 25%
 
@@ -102,6 +102,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 261026-n2i | Rebrand backend host and bundle id for the strangewords.app domain switch | 2026-10-26 | 8a95143 | [261026-n2i-rebrand-backend-host-and-bundle-id-for-t](./quick/261026-n2i-rebrand-backend-host-and-bundle-id-for-t/) |
+| 261026-nd8 | Repin dev scripts to current-generation simulators for Xcode 27 | 2026-10-26 | fe34596 | [261026-nd8-repin-dev-scripts-to-current-generation-](./quick/261026-nd8-repin-dev-scripts-to-current-generation-/) |
 
 ## Deferred Items
 
