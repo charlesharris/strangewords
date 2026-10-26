@@ -66,7 +66,7 @@ struct SeamDefaultsTests {
     }
 
     @Test func apiBaseDefaultsToProduction() {
-        #expect(APIClient.resolveBase(environment: [:]).absoluteString == "https://api.strangerwords.us")
+        #expect(APIClient.resolveBase(environment: [:]).absoluteString == "https://api.strangewords.app")
         #expect(APIClient.resolveBase(environment: ["SW_API_BASE": "http://127.0.0.1:9"]).absoluteString == "http://127.0.0.1:9")
     }
 
