@@ -51,6 +51,7 @@ func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.Handle("GET /metrics", metrics.Handler())
+	mux.HandleFunc("GET /privacy", s.handlePrivacy) // public privacy policy page
 	mux.HandleFunc("POST /v1/enter", s.handleEnter)
 	mux.HandleFunc("GET /v1/waiting", s.handleWaiting)
 	mux.HandleFunc("GET /v1/session/{id}", s.handleGetSession)
