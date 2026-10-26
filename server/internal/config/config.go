@@ -39,7 +39,7 @@ func Load() Config {
 		RateBurst: envFloat("SW_RATE_BURST", 60),
 		// Apple App ID for App Attest. Empty by default so local/dev runs (no
 		// Secure Enclave on the simulator) skip enforcement; set in Fly secrets
-		// for production: SW_APP_ATTEST_APPID=2M6QRD8T3A.com.strangerwords.us
+		// for production: SW_APP_ATTEST_APPID=2M6QRD8T3A.app.strangewords
 		AppAttestAppID: env("SW_APP_ATTEST_APPID", ""),
 	}
 }

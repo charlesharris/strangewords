@@ -4,17 +4,18 @@ The backend is a single stateless Go binary (`cmd/server`) backed by Redis. It
 deploys to [Fly.io](https://fly.io) from the `server/` directory. All app config
 lives in [`fly.toml`](./fly.toml); the image is built from [`Dockerfile`](./Dockerfile).
 
-The iOS app talks to a stable custom hostname (`https://api.strangerwords.us`),
+The iOS app talks to a stable custom hostname (`https://api.strangewords.app`),
 so the backend can be re-pointed via DNS without an App Store update.
 
-> **On the name.** The public domain is **`strangerwords.us`** (with the "r",
-> matching the app's display name "Stranger Words"). The backend lives on the
-> `api.` subdomain; the apex `strangerwords.us` is reserved for a future landing
-> page. The Fly app is `strangerwords` (hence `strangerwords.fly.dev`). The Go
-> module/identifiers keep the no-"r" spelling on purpose — they're internal,
-> never user-visible, and renaming them is churn. The **iOS bundle id is
-> `com.strangerwords.us`** (with the "r"), matching the registered App ID so
-> App Attest can bind to `2M6QRD8T3A.com.strangerwords.us`.
+> **On the name.** The public domain is **`strangewords.app`**. The backend
+> lives on the `api.` subdomain; the apex `strangewords.app` is reserved for a
+> future landing page. The Fly app is `strangewords` (hence
+> `strangewords.fly.dev`). The domain spelling now matches the code-internal
+> `strangewords` identifiers (Go module, Xcode target). The user-facing display
+> name stays "Stranger Words". The **iOS bundle id is `app.strangewords`**
+> (reverse-DNS of the domain), set before the first App Store upload because a
+> bundle id cannot change after that. App Attest binds to
+> `2M6QRD8T3A.app.strangewords`.
 
 ## Why Fly.io
 
@@ -28,7 +29,7 @@ The choice was pragmatic, not dogmatic — `plan.v1.md` left the host `[TUNABLE]
   machine warm so the iOS polling loop never hits a cold start mid-poem.
 - **Region pinning** (`sjc`) puts it near early users; more regions is config.
 - **DNS-repointable hostname + free TLS**, so the backend can move without an App
-  Store update — the property the `api.strangerwords.us` indirection relies on.
+  Store update — the property the `api.strangewords.app` indirection relies on.
 - **Private networking** is already used for pprof (`SW_DEBUG_ADDR` via `fly proxy`).
 
 Reconsider if Upstash Redis reliability bites (a blip only drops in-flight
@@ -97,9 +98,9 @@ brew install flyctl
 fly auth login
 cd server
 
-# 1. Create the app. Names are GLOBALLY unique — if "strangerwords" is taken,
+# 1. Create the app. Names are GLOBALLY unique — if "strangewords" is taken,
 #    pick another and update `app =` in fly.toml to match.
-fly apps create strangerwords
+fly apps create strangewords
 
 # 2. Create Redis in the SAME region as fly.toml (primary_region = "sjc").
 #    Copy the connection string it prints:
@@ -116,19 +117,41 @@ fly secrets set SW_REDIS_ADDR='redis://default:PASSWORD@fly-xxxx.upstash.io:6379
 # 4. First deploy + sanity check.
 fly deploy
 fly logs                                       # expect "listening" + redis ping ok
-curl https://strangerwords.fly.dev/healthz      # expect 200
+curl https://strangewords.fly.dev/healthz      # expect 200
 
 # 5. Custom domain + TLS cert.
-fly certs add api.strangerwords.us
-fly certs show api.strangerwords.us            # prints the exact DNS records to add
+fly certs add api.strangewords.app
+fly certs show api.strangewords.app            # prints the exact DNS records to add
 #    -> add those records at your DNS registrar (typically a CNAME
-#       api -> strangerwords.fly.dev, plus AAAA/A if listed).
-fly certs check api.strangerwords.us           # wait until it validates
-curl https://api.strangerwords.us/healthz      # expect 200
+#       api -> strangewords.fly.dev, plus AAAA/A if listed).
+fly certs check api.strangewords.app           # wait until it validates
+curl https://api.strangewords.app/healthz      # expect 200
 ```
 
-After `api.strangerwords.us/healthz` returns 200, the iOS base URL
+After `api.strangewords.app/healthz` returns 200, the iOS base URL
 (`ios/Strangewords/Net/APIClient.swift`) points here.
+
+## Cutover from the legacy Fly app
+
+The backend was first deployed as the Fly app `strangerwords`. Observed
+2026-10-26: that legacy app still serves the live backend at
+`strangerwords.fly.dev` (`/healthz` returns 200), while the new app
+`strangewords` and the `api.strangewords.app` DNS did not exist yet. Because
+`server/fly.toml` now names `strangewords`, do the cutover in this order so the
+legacy app keeps serving until the replacement is ready:
+
+1. Run the one-time bootstrap above for `strangewords` (new app, new Redis,
+   `SW_REDIS_ADDR` secret).
+2. From `server/`, create a fresh deploy token: `fly tokens create deploy -x 999999h`.
+   `fly tokens create deploy` tokens are scoped to a single app, so the current
+   `FLY_API_TOKEN` cannot deploy `strangewords`. Replace the `FLY_API_TOKEN`
+   GitHub secret with the new token.
+3. Only after steps 1 and 2, push to `main`. Until then, any push touching
+   `server/**` triggers a deploy that fails.
+4. Add the cert and DNS for `api.strangewords.app` (bootstrap step 5).
+5. After `https://api.strangewords.app/healthz` returns 200, destroy the legacy
+   app and its Redis. There is nothing to migrate: Redis holds only
+   TTL-bounded state.
 
 ## Continuous deployment (push-to-deploy)
 

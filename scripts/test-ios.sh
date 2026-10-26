@@ -28,7 +28,7 @@
 #
 # Side effects:
 #   - The host app runs in mock mode and clears the participant token in the
-#     com.strangerwords.us container of the test simulator.
+#     app.strangewords container of the test simulator.
 #   - The pinned simulator is shut down when the run ends, even if it was already
 #     booted before the run (D-07). That ends any run.sh session on the same
 #     simulator, so do not run this at the same time as run.sh on one simulator.
