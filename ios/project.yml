@@ -48,6 +48,9 @@ targets:
           UIApplicationSupportsMultipleScenes: false
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        # App Store validation requires portrait-only iPad apps to opt out of
+        # multitasking; without this the upload is rejected as an invalid bundle.
+        UIRequiresFullScreen: true
         # Dev-only: allow plain HTTP to the local backend during bring-up.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
