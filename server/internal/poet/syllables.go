@@ -72,8 +72,10 @@ func adjustSuffix(rs []rune, count int) int {
 	cons := func(i int) bool { return i >= 0 && i < n && !isVowel(rs[i]) }
 	switch {
 	case has("e"):
-		// Drop the silent e, except consonant+"le" (table, candle, maple).
-		if has("le") && cons(n-3) {
+		// Drop the silent e only when it stands alone after a consonant. An e
+		// that ends a vowel group (agree, movie, value) is already counted
+		// with it. consonant+"le" keeps its syllable (table, candle, maple).
+		if !cons(n-2) || (has("le") && cons(n-3)) {
 			return count
 		}
 		return count - 1
