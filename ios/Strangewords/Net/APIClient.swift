@@ -42,7 +42,7 @@ actor APIClient: Backend {
            let u = URL(string: override) {
             return u
         }
-        return URL(string: "https://api.strangerwords.us")!
+        return URL(string: "https://api.strangewords.app")!
     }
 
     /// The production network session: ephemeral (no persistent cookies or cache,

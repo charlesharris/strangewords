@@ -22,7 +22,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 IOS="$ROOT/ios"
 PROJ="$IOS/Strangewords.xcodeproj"
 APP="$IOS/build/Build/Products/Debug-iphonesimulator/Strangewords.app"
-BUNDLE="com.strangerwords.us"
+BUNDLE="app.strangewords"
 BASE="http://127.0.0.1:8080"
 
 # Default: a single simulator in mock mode — an on-device stranger auto-replies
@@ -42,7 +42,7 @@ for a in "$@"; do
 done
 [[ "$MOCK" == "1" ]] && export SIMCTL_CHILD_SW_LOCAL_MOCK=1
 # Non-mock sims hit a real backend: point the app at the local server. Without
-# this the app would default to the production host (api.strangerwords.us).
+# this the app would default to the production host (api.strangewords.app).
 [[ "$MOCK" != "1" ]] && export SIMCTL_CHILD_SW_API_BASE="$BASE"
 [[ -n "${SIMCTL_CHILD_SW_FORCE_TOD:-}" ]] && echo "▸ Forcing theme: $SIMCTL_CHILD_SW_FORCE_TOD"
 [[ "$MOCK" == "1" ]] && echo "▸ Mock mode: on-device stranger, no backend needed (dev toggle on)."
