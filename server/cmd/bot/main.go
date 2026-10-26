@@ -10,35 +10,24 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"math/rand/v2"
 	"net/http"
 	"time"
 
+	"strangewords/internal/poet"
 	"strangewords/internal/sessions"
 )
 
-// Curated lines by syllable count, so the bot honors the haiku's soft nudges.
-var fiveSyllable = []string{
-	"an old silent pond",
-	"the moon over snow",
-	"soft rain on the leaves",
-	"a crow on the branch",
-	"morning fog is lifting",
-	"the last cherry bloom",
-	"still water at dusk",
-	"wind through the empty halls",
-}
-
-var sevenSyllable = []string{
-	"a frog jumps into the pond",
-	"the autumn wind scatters them",
-	"cicadas sing in the heat",
-	"lanterns drift down the dark stream",
-	"snow settles on the pine boughs",
-	"the river remembers rain",
-	"shadows grow long on the path",
-}
+// The bot's thoughtful pause before it writes a line is thinkBaseMS plus up to
+// thinkJitterMS of jitter, in milliseconds.
+const (
+	// thinkBaseMS is the minimum pause. [TUNABLE]
+	thinkBaseMS = 1500
+	// thinkJitterMS is the random extra pause added to thinkBaseMS. [TUNABLE]
+	thinkJitterMS = 1800
+)
 
 type enterResp struct {
 	ParticipantToken string         `json:"participantToken"`
@@ -85,6 +74,8 @@ func (b *bot) playOne() error {
 		return err
 	}
 	fmt.Printf("🤝  matched! I'm participant %d. Let's make something.\n", view.You)
+	p := poet.New(seedFor(view.SessionID))
+	fmt.Printf("🎨  I'm in a mood for %s tonight.\n", p.Theme())
 
 	for {
 		switch view.Status {
@@ -94,8 +85,8 @@ func (b *bot) playOne() error {
 			return nil
 		case sessions.StatusActive:
 			if view.YourTurn {
-				time.Sleep(time.Duration(1500+rand.IntN(1800)) * time.Millisecond) // a thoughtful pause
-				line := b.composeLine(view)
+				time.Sleep(time.Duration(thinkBaseMS+rand.IntN(thinkJitterMS)) * time.Millisecond) // a thoughtful pause
+				line := composeLine(p, view)
 				next, err := b.submit(view.SessionID, view.CurrentLine, line)
 				if err != nil {
 					return err
@@ -147,28 +138,18 @@ func (b *bot) enterAndMatch() (sessions.View, error) {
 	}
 }
 
-// composeLine picks a line that fits the current target, avoiding repeats.
-func (b *bot) composeLine(v sessions.View) string {
-	var pool []string
-	switch target(v) {
-	case 5:
-		pool = fiveSyllable
-	case 7:
-		pool = sevenSyllable
-	default:
-		pool = append(append([]string{}, fiveSyllable...), sevenSyllable...)
-	}
-	used := map[string]bool{}
-	for _, l := range v.Lines {
-		used[l] = true
-	}
-	for i := 0; i < 12; i++ {
-		c := pool[rand.IntN(len(pool))]
-		if !used[c] {
-			return c
-		}
-	}
-	return pool[rand.IntN(len(pool))]
+// seedFor derives a poem's poet seed from its session id (FNV-1a 64), so one
+// session always gets one theme.
+func seedFor(sessionID string) uint64 {
+	h := fnv.New64a()
+	h.Write([]byte(sessionID))
+	return h.Sum64()
+}
+
+// composeLine writes the line for the current target, building on the poem so
+// far.
+func composeLine(p *poet.Poet, v sessions.View) string {
+	return p.Line(target(v), v.Lines)
 }
 
 func target(v sessions.View) int {
