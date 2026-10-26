@@ -4,10 +4,10 @@ current_phase: 02
 current_phase_name: iOS Client Logic Suites
 status: verifying
 stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-10-26T22:25:41.478Z"
+last_updated: "2026-10-26T22:35:59.164Z"
 last_activity: 2026-10-26
 last_activity_desc: Phase 02 execution started
-state_head: 9920b1b3ed0457faa285a2b91a681e07282b4468
+state_head: ccffe483811849ee2f00b23ba9a10065511fa97d
 progress:
   total_phases: 4
   completed_phases: 1
@@ -104,6 +104,7 @@ None yet.
 | 261026-n2i | Rebrand backend host and bundle id for the strangewords.app domain switch | 2026-10-26 | 8a95143 | [261026-n2i-rebrand-backend-host-and-bundle-id-for-t](./quick/261026-n2i-rebrand-backend-host-and-bundle-id-for-t/) |
 | 261026-nd8 | Repin dev scripts to current-generation simulators for Xcode 27 | 2026-10-26 | fe34596 | [261026-nd8-repin-dev-scripts-to-current-generation-](./quick/261026-nd8-repin-dev-scripts-to-current-generation-/) |
 | 261026-no9 | Add App Store privacy manifest and export compliance flag | 2026-10-26 | 9920b1b | [261026-no9-add-app-store-privacy-manifest-and-expor](./quick/261026-no9-add-app-store-privacy-manifest-and-expor/) |
+| 4 | fast: opt portrait-only iPad out of multitasking (UIRequiresFullScreen) for App Store validation | 2026-10-26 | ccffe48 | — |
 
 ## Deferred Items
 
