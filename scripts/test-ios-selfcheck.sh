@@ -22,7 +22,7 @@
 #   2  preflight (jq or xcrun missing, or scripts/test-ios.sh not executable)
 #
 # Env overrides:
-#   SW_SIM_NAME    simulator name to pin (default: iPhone 16)
+#   SW_SIM_NAME    simulator name to pin (default: iPhone 17)
 #   SW_VERIFY_OUT  evidence dir (default: build/verify/<timestamp>-selfcheck)
 #
 # Side effects: boots and shuts down the pinned simulator six times; see the
@@ -32,7 +32,7 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RUNNER="$ROOT/scripts/test-ios.sh"
-SIM_NAME="${SW_SIM_NAME:-iPhone 16}"
+SIM_NAME="${SW_SIM_NAME:-iPhone 17}"
 SELF="${SW_VERIFY_OUT:-$ROOT/build/verify/$(date +%Y%m%d-%H%M%S)-selfcheck}"
 
 for t in jq xcrun; do

@@ -18,7 +18,11 @@
 #      with the pinned name)
 #
 # Env overrides:
-#   SW_SIM_NAME    simulator name to pin, matched exactly (default: iPhone 16)
+#   SW_SIM_NAME    simulator name to pin, matched exactly (default: iPhone 17,
+#                  iOS 27.0 runtime). Set it to a device on another installed
+#                  runtime (list them with `xcrun simctl list devices available`)
+#                  to run the suite there; an older runtime is the closer check
+#                  of the iOS 17.0 deployment target.
 #   SW_VERIFY_OUT  evidence directory (default: build/verify/<timestamp>;
 #                  Phase 4 verify.sh sets it)
 #
@@ -41,7 +45,7 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 IOS="$ROOT/ios"
-SIM_NAME="${SW_SIM_NAME:-iPhone 16}"
+SIM_NAME="${SW_SIM_NAME:-iPhone 17}"
 OUT="${SW_VERIFY_OUT:-$ROOT/build/verify/$(date +%Y%m%d-%H%M%S)}"
 DERIVED="$ROOT/build/derived/ios-test"
 
