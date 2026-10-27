@@ -39,7 +39,7 @@ Non-exhaustive list of known-good building blocks. The executor may use any Swif
 |-----------|----------|-------|
 | `Theme.display(_:)`, `Theme.poem(_:)`, `Theme.poemItalic(_:)`, `Theme.chrome`, `Theme.label` | `Design/Theme.swift` | The only type tokens. All scale with Dynamic Type (`relativeTo:`). |
 | `Palette` via `@Environment(\.palette)` | `Design/Theme.swift` | `ink`, `secondary`, `accent`, `onAccent`, `skyTop`, `skyBottom`, `isDark`. Always resolved from the active `SceneTheme` + `TimeOfDay`. |
-| `RitualButtonStyle` (`.buttonStyle(.ritual)`) | `Design/RitualButton.swift` | Frosted capsule. NOT used for the gear or the sheet's done button (see below). Reuse its recipe (onAccent backing + ink hairline) for new surfaces. |
+| `RitualButtonStyle` (`.buttonStyle(.ritual)`) | `Design/RitualButton.swift` | Frosted capsule. NOT used for the gear or the sheet's close button (see below). Reuse its recipe (onAccent backing + ink hairline) for new surfaces. |
 | `PoemLine` | `Design/Theme.swift` | Unchanged this phase. |
 | `Haptics.soft()` | `App/Haptics.swift` | Not used by this phase (see Interaction). |
 | NEW `SettingsView` | `Features/Settings/SettingsView.swift` | The sheet content. One row this phase; stacked-rows structure so later rows (safety, EULA) append without redesign. |
@@ -62,10 +62,12 @@ Declared values (multiples of 4, in pt). Phase 5 draws only from these tokens.
 | 3xl | 64px | Not used |
 
 Exceptions (each deliberate and listed):
-- 44pt minimum hit area on the gear button and on the sheet's "done" button (Apple HIG touch target).
-- 12pt horizontal padding on the caption chip and 20pt gear glyph box are inside multiples of 4 (12 = 3x4, 20 = 5x4); no non-multiple values are introduced.
-- The 28pt content margin (`RootView` `.padding(.horizontal, 28)`) is inherited and unchanged.
-- Dev-chip offsets (`top 6`, `trailing 14`) belong to existing dev tooling and are untouched.
+- 44pt minimum hit area on the gear button and on the sheet's "close" button (Apple HIG touch target).
+- Every value Phase 5 introduces is a multiple of 4: 44 (hit area), 36 (gear backing), 20 (gear glyph), 12 (gear x-offset and chip horizontal padding), 8, 4, 16, 24, 32, 48, 56 (row minimum height).
+- Inherited legacy values, pre-existing and untouched by this phase (listed so the contract is self-consistent; do not copy them into new code):
+  - 28pt content margin (`RootView` `.padding(.horizontal, 28)`).
+  - 30pt `VStack(spacing: 30)` in `RevealView`; 28pt `VStack(spacing: 28)` in `ComposeView`; 36pt / 40pt spacing in `WaitingView` / `ThresholdView`; 14pt and 12pt stack spacings elsewhere in Compose.
+  - Dev-chip offsets (`top 6`, `trailing 14`) from existing dev tooling (`RootView.devControls`).
 
 ---
 
@@ -78,7 +80,7 @@ Sizes declared for this phase: 3 (13, 15, 20). Weights declared for this phase: 
 | Role | Token | Size | Weight | Line Height |
 |------|-------|------|--------|-------------|
 | Label (caption chip text, helper text, waiting soft line) | `Theme.label` (Inter) | 13 | Regular 400 | ~1.5 (`.lineSpacing(4)`) |
-| Body / chrome (toggle label, "done") | `Theme.chrome` (Inter) | 15 | Regular 400 | ~1.5 (`.lineSpacing(4)`) |
+| Body / chrome (toggle label, "close") | `Theme.chrome` (Inter) | 15 | Regular 400 | ~1.5 (`.lineSpacing(4)`) |
 | Heading (sheet title) | `Theme.poem(20)` (Fraunces) | 20 | Regular 400 | 1.2 (system default, no extra spacing) |
 | Display | not used this phase | — | SemiBold 600 (existing) | — |
 
@@ -105,7 +107,7 @@ Accent reserved for: (1) the "on" tint of the single robot-poet switch (`.tint(p
 
 Why the `onAccent` 0.6 backing is mandatory (contrast): `onAccent` has the opposite luminance of `ink` in every palette, so ink-on-backing stays legible even where the scene itself fights `ink`. Verified by inspection against the palettes: SciFi morning has a dark `skyTop` (0x243A6E) with a dark `ink` (0x14263F), and the Reveal phase darkens day scenes with the dusk overlay (`sceneDepth` 0.70); bare `ink` or `secondary` text at the top of the screen would fall under 4.5:1 in both cases. With the backing, text and glyph clear 4.5:1 (text) and 3:1 (glyph) in all nine palettes by the luminance estimates: worst case SciFi morning ~6:1, Nature morning ~10:1, night palettes >10:1. Do not use `palette.secondary` for any Phase 5 text (Nature morning `secondary` over `skyTop` measures about 2.8:1).
 
-Known limitation, accepted: the switch's on-state track (`accent`) is below 3:1 against the sheet surface in the light Nature palette (about 2.3:1). State is not conveyed by color alone: the thumb position and the VoiceOver value ("on"/"off") carry it, and the system's "On/Off Labels" accessibility option is honored automatically by `Toggle`. Do not override the toggle style.
+> **IMPLEMENTER NOTE (toggle work): accepted limitation, do not "fix" by recoloring the track.** The switch's on-state track (`accent`) is below 3:1 against the sheet surface in the light Nature palette (about 2.3:1). State is not conveyed by color alone: the thumb position and the VoiceOver value ("on"/"off") carry it, and the system's "On/Off Labels" accessibility option is honored automatically by `Toggle`. Do not override the toggle style and do not substitute a non-accent track color; accent for the on-tint is part of the locked 60/30/10 contract.
 
 ---
 
@@ -113,8 +115,8 @@ Known limitation, accepted: the switch's on-state track (`accent`) is below 3:1 
 
 ### Gear affordance
 - Placement: **top-leading** of the Threshold, as an `.overlay(alignment: .topLeading)` on `ThresholdView`'s root `VStack`. Dev chips occupy `.topTrailing` at the `RootView` level when `Dev.showControls` is true, so top-leading never collides with them on any supported width (chips are about 120pt wide, right-aligned). Do not place the gear top-trailing.
-- Geometry: 44x44pt hit area; `Image(systemName: "gearshape")` at `.font(.system(size: 18, weight: .regular))` (SF Symbol scaled by the system, not a Theme token), centered in a 36pt backing `Circle` filled `palette.onAccent.opacity(0.6)`, glyph tinted `palette.ink.opacity(0.8)`. The hit area is the 44pt frame (`.contentShape(Rectangle())`).
-- Horizontal alignment: the 44pt hit area is offset `x: -14` from the content edge, so the glyph's visual left edge sits near the 28pt content margin. Top inset: 8pt below the top safe area (`.padding(.top, 8)`).
+- Geometry: 44x44pt hit area; `Image(systemName: "gearshape")` at `.font(.system(size: 20, weight: .regular))` (SF Symbol scaled by the system, not a Theme token), centered in a 36pt backing `Circle` filled `palette.onAccent.opacity(0.6)`, glyph tinted `palette.ink.opacity(0.8)`. The hit area is the 44pt frame (`.contentShape(Rectangle())`).
+- Horizontal alignment: the 44pt hit area is offset `x: -12` from the content edge (screen x = 16). The 36pt backing circle is centered in it (left edge at x = 20) and the 20pt glyph is centered in the circle (left edge at x = 28), so the glyph's visual left edge lands exactly on the 28pt content margin. Every offset and size in this chain is a multiple of 4. Top inset: 8pt below the top safe area (`.padding(.top, 8)`).
 - Visibility: shown only in `.threshold` (it lives inside `ThresholdView`, so it is automatically absent in waiting, compose, reveal, dissolving, dissolved). Never in the middle of a poem.
 - Press state: opacity 0.6 while pressed, `.easeOut(duration: 0.15)`. No scale effect (the ritual scale is reserved for ritual buttons). Use a plain `ButtonStyle`, not `.ritual`, so it stays quieter than "begin".
 - Accessibility: `.accessibilityLabel("Settings")`, `.accessibilityHint("Opens preferences, including writing with the robot poet.")`. Hit target >= 44x44. The gear is first in VoiceOver reading order (top-leading) and "begin" remains the last, primary action.
@@ -126,7 +128,7 @@ Known limitation, accepted: the switch's on-state track (`accent`) is below 3:1 
 - Background: `.presentationBackground(palette.skyBottom)` (opaque, not material). Reason: a material over three procedurally different scenes (including the dithered pixel scenes) is unpredictable; an opaque palette surface keeps contrast fixed across all 9 palettes.
 - Environment: the sheet content MUST be re-injected explicitly: `.environment(\.palette, palette)`, `.environment(\.sceneTheme, theme)`, `.environment(model)` and `.preferredColorScheme(palette.isDark ? .dark : .light)`. Do not rely on inheritance (research assumption A2 is unverified).
 - Layout (top to bottom, inside a `ScrollView`, horizontal padding 24, top 32, bottom 48):
-  1. Header row: title `Text("settings")` in `Theme.poem(20)`, `palette.ink`, centered, `.accessibilityAddTraits(.isHeader)`. A trailing "done" button on the same row (see below).
+  1. Header row: title `Text("settings")` in `Theme.poem(20)`, `palette.ink`, centered, `.accessibilityAddTraits(.isHeader)`. A trailing "close" button on the same row (see below).
   2. 24pt gap.
   3. Row card (the only row this phase): `RoundedRectangle(cornerRadius: 16)` filled `palette.onAccent.opacity(0.6)`, stroked `palette.ink.opacity(0.15)` 1pt, inner padding 16, minimum height 56.
   4. Rows are children of a `VStack(spacing: 16)` so later rows append without layout changes. No section headers, no dividers, no footer.
@@ -134,7 +136,7 @@ Known limitation, accepted: the switch's on-state track (`accent`) is below 3:1 
   - Primary: `Text("write with the robot poet")` in `Theme.chrome`, `palette.ink`.
   - Helper: `Text("if no one else arrives after a little while, a robot poet — software on our server, not a person — can write with you, and you'll always be told.")` in `Theme.label`, `palette.ink.opacity(0.85)`.
   - `.tint(palette.accent)`; default OFF. The toggle is the whole row's tap target (the label is inside the `Toggle`, so tapping the text also toggles).
-- "done" button: top-trailing in the header row, `Theme.chrome`, `palette.ink`, plain button style, 44x44 minimum hit area. Calls `dismiss()`. It exists so Voice Control and Switch Control users have a visible dismissal; drag-down and tap-outside also dismiss. Do not use `.ritual`.
+- "close" button: top-trailing in the header row, `Theme.chrome`, `palette.ink`, plain button style, 44x44 minimum hit area, `.accessibilityLabel("Close settings")`. Calls `dismiss()`. Rationale for the short visible word: the sheet title directly beside it already says "settings", so "close settings" would repeat itself on screen; the full phrase is carried by the accessibility label (Voice Control users say "tap close"). It exists so Voice Control and Switch Control users have a visible dismissal; drag-down and tap-outside also dismiss. Do not use `.ritual`.
 - Write-through: toggling writes immediately to `AppModel.allowBot` (which persists via `SettingsStore`). There is no Save button and no confirmation. The new value applies to the next `begin()`.
 - Haptics: none from the app (the system switch supplies its own). Do not call `Haptics.soft()` here; that vocabulary is reserved for deliberate ritual acts.
 - Accessibility: `Toggle` is announced as "Write with the robot poet, switch button, off". The helper is part of the combined element via `.accessibilityElement(children: .combine)` on the label; it is read as the toggle's description. No custom `accessibilityValue`.
@@ -211,7 +213,7 @@ Contrast note: this line uses `palette.secondary`, same as the existing waiting 
 | Primary CTA | None added this phase. The existing `begin` CTA is unchanged. The only new interactive control is the switch: `write with the robot poet` |
 | Settings title | `settings` |
 | Settings helper | `if no one else arrives after a little while, a robot poet — software on our server, not a person — can write with you, and you'll always be told.` |
-| Sheet dismiss | `done` |
+| Sheet dismiss | visible `close`; accessibility label `Close settings` |
 | Compose caption (bot) | `writing with the robot poet` |
 | Reveal caption (bot) | `written with the robot poet` |
 | Compose their-turn (bot) | `the robot poet is with the poem now` / `its line will be here in a moment` |
@@ -238,7 +240,7 @@ Applicable state considerations resolved: 8 covered, 2 backstop, 1 unresolved
 | all themes x times of day | Gear, chip, row card, sheet | ✅ covered | All use `onAccent` 0.6 backing with `ink` text, resolved from `Palette`; no hardcoded hex; sheet background is `skyBottom` |
 | dev chips present | Gear, caption | ✅ covered | Gear and caption are top-leading; dev chips are top-trailing |
 | Reduce Motion | Gear, sheet, caption, soft line | ✅ covered | No motion added beyond the existing cross-fade and a 0.15s press opacity; nothing to disable |
-| VoiceOver / Voice Control | Gear, switch, done, chip | 🧪 backstop | Labels and the match announcement are specified; there is no XCUITest (out of scope per REQUIREMENTS.md), so the pure caption/label functions are unit-tested and the rest is deferred manual UAT |
+| VoiceOver / Voice Control | Gear, switch, close, chip | 🧪 backstop | Labels and the match announcement are specified; there is no XCUITest (out of scope per REQUIREMENTS.md), so the pure caption/label functions are unit-tested and the rest is deferred manual UAT |
 | sheet inherits palette/color scheme | Settings sheet | 🧪 backstop | Explicit environment re-injection is specified; cannot be proven by the automated suite (research A2/Pitfall 10); deferred manual UAT in all 9 palettes |
 | iPad regular width | Sheet | ⚠ unresolved | Form-sheet sizing and ignored detents are assumed fine with `maxWidth: 480`; not exercised on a simulator (no UI automation, portrait-only) |
 
