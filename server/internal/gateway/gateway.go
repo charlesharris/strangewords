@@ -95,7 +95,10 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 type enterRequest struct {
 	PushToken string `json:"pushToken"`
-	Prefs     struct {
+	// AllowBot is the caller's own opt-in to the robot poet (D-01). The lenient
+	// decode below leaves it false when absent or wrongly typed (fail-closed).
+	AllowBot bool `json:"allowBot"`
+	Prefs    struct {
 		Form string `json:"form"`
 	} `json:"prefs"`
 }
@@ -115,7 +118,7 @@ func (s *Server) handleEnter(w http.ResponseWriter, r *http.Request) {
 	formID := sessions.LookupForm(req.Prefs.Form).ID
 	bucket := formID // v1: one bucket per form; only haiku exists
 
-	res, err := s.mm.Enter(r.Context(), token, req.PushToken, bucket, formID, s.now())
+	res, err := s.mm.Enter(r.Context(), token, req.PushToken, bucket, formID, req.AllowBot, s.now())
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -162,6 +165,21 @@ func (s *Server) handleWaiting(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if wfe.MatchedSessionID == "" {
+			// Human first (D-03): only a still-unmatched, opted-in waiter whose
+			// window has passed may claim itself for the robot poet. Losing the
+			// claim to a human arrival is not an error; the next poll finds the match.
+			if wfe.AllowBot && s.cfg.BotWindow > 0 && s.now().UnixMilli()-wfe.EnqueuedAt >= s.cfg.BotWindow.Milliseconds() {
+				sess, claimed, err := s.mm.PairWithBot(r.Context(), wfe, sessions.LookupForm(wfe.Bucket).ID, s.cfg.BotThink, s.now())
+				if err != nil {
+					s.fail(w, err)
+					return
+				}
+				if claimed {
+					metrics.BotPaired.Inc()
+					writeJSON(w, http.StatusOK, map[string]any{"state": "matched", "session": sess.ViewFor(token)})
+					return
+				}
+			}
 			writeJSON(w, http.StatusOK, map[string]string{"state": "waiting"})
 			return
 		}

@@ -19,6 +19,9 @@ type Participant struct {
 	PushToken string `json:"pushToken,omitempty"`
 	LastSeen  int64  `json:"lastSeen"` // unix millis
 	Dismissed bool   `json:"dismissed,omitempty"`
+	// Bot marks the robot poet. It has no token or push token and is created
+	// already dismissed, so a human's single dismiss dissolves the session.
+	Bot bool `json:"bot,omitempty"`
 }
 
 // Session is the encounter between participants plus its current poem.
@@ -39,8 +42,11 @@ type Session struct {
 	Lines       []string `json:"lines"`
 	CurrentLine int      `json:"currentLine"`
 	CompletedAt int64    `json:"completedAt,omitempty"`
-	PoemCount   int      `json:"poemCount"`
-	IdemKeys    []string `json:"idemKeys,omitempty"` // tracked so teardown erases cached responses
+	// BotReadyAt is unix millis: the earliest moment the robot poet may write
+	// its current line (think time).
+	BotReadyAt int64    `json:"botReadyAt,omitempty"`
+	PoemCount  int      `json:"poemCount"`
+	IdemKeys   []string `json:"idemKeys,omitempty"` // tracked so teardown erases cached responses
 }
 
 func (s *Session) form() Form         { return LookupForm(s.FormID) }
@@ -100,6 +106,12 @@ func (s *Session) ViewFor(token string) View {
 		lines = []string{}
 	}
 	f := s.form()
+	partnerIsBot := false
+	for i, p := range s.Participants {
+		if i != you && p.Bot {
+			partnerIsBot = true
+		}
+	}
 	return View{
 		SessionID:        s.ID,
 		You:              you,
@@ -110,6 +122,7 @@ func (s *Session) ViewFor(token string) View {
 		CurrentAuthor:    author,
 		YourTurn:         s.Status == StatusActive && you == author,
 		Lines:            lines,
+		PartnerIsBot:     partnerIsBot,
 	}
 }
 

@@ -51,6 +51,10 @@ type WaitEntry struct {
 	Bucket           string `json:"bucket"`
 	EnqueuedAt       int64  `json:"enqueuedAt"`
 	MatchedSessionID string `json:"matchedSessionId,omitempty"`
+	// AllowBot records that this waiter opted in to the robot poet for this
+	// wait. It lives only on the TTL-bound wait entry (WaitTTL) and is deleted
+	// when the waiter is claimed.
+	AllowBot bool `json:"allowBot,omitempty"`
 }
 
 type Store struct {
@@ -142,6 +146,18 @@ func (s *Store) PopWaiter(ctx context.Context, bucket string) (*WaitEntry, error
 		}
 		return w, nil
 	}
+}
+
+// ClaimWaiter removes one specific waiter id from its bucket queue and reports
+// whether this call removed it. It is one atomic Redis command (LREM),
+// serialised against PopWaiter's LPOP, so exactly one of {the waiter's own bot
+// claim, a human arrival} owns the waiter.
+func (s *Store) ClaimWaiter(ctx context.Context, bucket, id string) (bool, error) {
+	n, err := s.rdb.LRem(ctx, queueKey(bucket), 1, id).Result()
+	if err != nil {
+		return false, err
+	}
+	return n == 1, nil
 }
 
 func (s *Store) GetWait(ctx context.Context, id string) (*WaitEntry, error) {

@@ -28,10 +28,14 @@ type Result struct {
 // Enter issues nothing itself — the caller supplies the freshly minted token.
 // It either pairs the arriver with a waiting participant (returning a new
 // active session) or enqueues the arriver to wait.
-func (m *Matchmaker) Enter(ctx context.Context, token, pushToken, bucket, formID string, now time.Time) (Result, error) {
+//
+// allowBot is the arriver's opt-in to the robot poet. It only travels with the
+// wait entry when the arriver has to wait; the human-human pairing path
+// ignores it (D-03: humans first).
+func (m *Matchmaker) Enter(ctx context.Context, token, pushToken, bucket, formID string, allowBot bool, now time.Time) (Result, error) {
 	waiter, err := m.st.PopWaiter(ctx, bucket)
 	if errors.Is(err, store.ErrNotFound) {
-		return m.enqueue(ctx, token, pushToken, bucket, now)
+		return m.enqueue(ctx, token, pushToken, bucket, allowBot, now)
 	}
 	if err != nil {
 		return Result{}, err
@@ -43,13 +47,14 @@ func (m *Matchmaker) Enter(ctx context.Context, token, pushToken, bucket, formID
 	return Result{Session: sess}, nil
 }
 
-func (m *Matchmaker) enqueue(ctx context.Context, token, pushToken, bucket string, now time.Time) (Result, error) {
+func (m *Matchmaker) enqueue(ctx context.Context, token, pushToken, bucket string, allowBot bool, now time.Time) (Result, error) {
 	w := &store.WaitEntry{
 		ID:         store.NewID(),
 		Token:      token,
 		PushToken:  pushToken,
 		Bucket:     bucket,
 		EnqueuedAt: now.UnixMilli(),
+		AllowBot:   allowBot,
 	}
 	if err := m.st.Enqueue(ctx, w); err != nil {
 		return Result{}, err
@@ -95,4 +100,49 @@ func (m *Matchmaker) pair(ctx context.Context, waiter *store.WaitEntry, arriverT
 	waiter.MatchedSessionID = sess.ID
 	_ = m.st.SaveWait(ctx, waiter)
 	return sess, nil
+}
+
+// PairWithBot pairs an opted-in waiter with the robot poet. It first claims the
+// waiter out of the bucket queue (one atomic LREM); if a human arrival popped
+// the waiter first the claim is lost and it returns (nil, false, nil) so the
+// caller falls back to the normal waiting/matched reply. The bot is a flagged,
+// tokenless, pre-dismissed participant and is never a queue member, so no
+// arrival can be paired with it. Its first line is armed after think.
+func (m *Matchmaker) PairWithBot(ctx context.Context, waiter *store.WaitEntry, formID string, think time.Duration, now time.Time) (*sessions.Session, bool, error) {
+	claimed, err := m.st.ClaimWaiter(ctx, waiter.Bucket, waiter.ID)
+	if err != nil {
+		return nil, false, err
+	}
+	if !claimed {
+		return nil, false, nil
+	}
+	nowMs := now.UnixMilli()
+	sess := &sessions.Session{
+		ID: store.NewID(),
+		Participants: []sessions.Participant{
+			{Token: waiter.Token, PushToken: waiter.PushToken, LastSeen: nowMs},
+			{Bot: true, Dismissed: true, LastSeen: nowMs},
+		},
+		StartIndex:  rand.IntN(2),
+		Bucket:      waiter.Bucket,
+		CreatedAt:   nowMs,
+		Status:      sessions.StatusActive,
+		FormID:      formID,
+		PolicyID:    sessions.DefaultPolicyID,
+		Lines:       []string{},
+		CurrentLine: 0,
+		PoemCount:   1,
+		BotReadyAt:  nowMs + think.Milliseconds(),
+	}
+	if err := m.st.SaveSession(ctx, sess); err != nil {
+		return nil, false, err
+	}
+	if err := m.st.SetRef(ctx, waiter.Token, store.Ref{Kind: store.KindSession, RefID: sess.ID, Idx: 0}, store.SessionTTL); err != nil {
+		return nil, false, err
+	}
+	// Unlike the human path, drop the wait entry now rather than leaving it to TTL.
+	if err := m.st.DelWait(ctx, waiter.ID); err != nil {
+		return nil, false, err
+	}
+	return sess, true, nil
 }
