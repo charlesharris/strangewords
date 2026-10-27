@@ -100,12 +100,13 @@ final class AppModel {
     func begin() {
         epoch += 1
         let e = epoch
+        let allow = allowBot   // captured now: the opt-in is for this one wait
         Haptics.soft()
         keepsake = nil
         phase = .connecting
         actionTask = Task {
             do {
-                let r = try await api.enter(pushToken: nil, allowBot: false)
+                let r = try await api.enter(pushToken: nil, allowBot: allow)
                 guard !isStale(e) else { return }
                 if let t = r.participantToken { tokenStore.token = t }
                 handleEnter(r, epoch: e)

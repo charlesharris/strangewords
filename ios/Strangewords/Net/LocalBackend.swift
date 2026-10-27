@@ -11,6 +11,18 @@ import Foundation
 ///
 /// Like the server, `leave` and `dismiss` dissolve the poem: its lines are erased
 /// and later reads and writes report `APIError.gone` until the next `enter`.
+///
+/// An opted-in `enter` (`allowBot: true`) mirrors the server's robot-poet arc: it
+/// answers waiting, keeps answering waiting for `botWindow`, then matches with a
+/// session whose `partnerIsBot` is true (server: `TestBotFallbackTracer`).
+///
+/// DRIFT: the mock's robot poet writes the scripted `strangerLines` rather than
+/// the server's `server/internal/poet` output (D-11, DRFT-01).
+/// DRIFT: an opted-in mock user always waits the full window, because the mock has
+/// no human pool to race; the server races an atomic LREM claim against LPOP so a
+/// human arriving first wins.
+/// DRIFT: the mock starts with your turn, where the server picks `StartIndex` at
+/// random, so the robot poet may write first there.
 actor LocalBackend: Backend {
     private let sessionId = "local-poem"
     private let you = 0
@@ -45,6 +57,11 @@ actor LocalBackend: Backend {
     ]
     private var strangerPick = 0
 
+    /// True once the wait ended with the robot poet; surfaced as `partnerIsBot`.
+    private var partnerIsBot = false
+    /// Set while an opted-in user is waiting; nil when matched or not waiting.
+    private var waitingSince: Date?
+
     /// Defaults preserve the pacing the app ships with; tests pass zero so
     /// nothing waits on the wall clock (Phase 2 D-02).
     init(strangerThinkTime: TimeInterval = LocalBackend.defaultStrangerThinkTime,
@@ -70,7 +87,8 @@ actor LocalBackend: Backend {
             currentLine: currentLine,
             currentAuthor: currentAuthor,
             yourTurn: yourTurn,
-            lines: lines
+            lines: lines,
+            partnerIsBot: partnerIsBot
         )
     }
 
@@ -82,12 +100,26 @@ actor LocalBackend: Backend {
         currentLine = 0
         status = "active"
         strangerTurnSince = nil
+        partnerIsBot = false
+        waitingSince = nil
         try? await Task.sleep(for: enterDelay) // a breath at the threshold
-        return EnterResponse(participantToken: "local", state: "matched", session: view(), waitId: nil)
+        guard allowBot else {
+            return EnterResponse(participantToken: "local", state: "matched", session: view(), waitId: nil)
+        }
+        // Opted in: no stranger yet. waiting() ends the wait with the robot poet.
+        waitingSince = Date()
+        return EnterResponse(participantToken: "local", state: "waiting", session: nil, waitId: "local-wait")
     }
 
     func waiting(token: String) async throws -> WaitingResponse {
-        WaitingResponse(state: "matched", session: view())
+        if let since = waitingSince {
+            guard Date().timeIntervalSince(since) >= botWindow else {
+                return WaitingResponse(state: "waiting", session: nil)
+            }
+            waitingSince = nil
+            partnerIsBot = true
+        }
+        return WaitingResponse(state: "matched", session: view())
     }
 
     func getSession(id: String, token: String) async throws -> SessionView {
@@ -118,6 +150,7 @@ actor LocalBackend: Backend {
         status = "dissolved"
         lines = []
         strangerTurnSince = nil
+        waitingSince = nil
     }
 
     // MARK: - Line validation
