@@ -80,6 +80,9 @@ type View struct {
 	CurrentAuthor    int      `json:"currentAuthor"`
 	YourTurn         bool     `json:"yourTurn"`
 	Lines            []string `json:"lines"`
+	// PartnerIsBot is true when any other participant is the robot poet. It is
+	// computed only in ViewFor (D-04), never read from a request.
+	PartnerIsBot bool `json:"partnerIsBot,omitempty"`
 }
 
 // FormView is the structure descriptor the client renders from.

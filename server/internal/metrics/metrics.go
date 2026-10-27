@@ -25,6 +25,7 @@ var (
 	Entered        = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_entered_total", Help: "Participants that entered the matchmaker."})
 	Matched        = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_matched_total", Help: "Enters that paired immediately into a session."})
 	Waiting        = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_waiting_total", Help: "Enters that were enqueued to wait."})
+	BotPaired      = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_bot_paired_total", Help: "Opted-in waiters paired with the robot poet after the wait window."})
 	LinesSubmitted = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_lines_submitted_total", Help: "Poem lines accepted."})
 	PoemsCompleted = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_poems_completed_total", Help: "Poems that reached completion."})
 	Dissolved      = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_dissolved_total", Help: "Sessions torn down."})

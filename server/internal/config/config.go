@@ -17,6 +17,13 @@ type Config struct {
 	RateRPS        float64       // per-IP sustained request rate; <= 0 disables rate limiting
 	RateBurst      float64       // per-IP burst allowance (token-bucket depth)
 
+	// BotWindow is how long an opted-in waiter waits for a human before the
+	// robot poet steps in. [TUNABLE] A value <= 0 disables the robot poet
+	// entirely (ops kill switch, same convention as SW_RATE_RPS=0).
+	BotWindow time.Duration
+	// BotThink is the robot poet's pause before writing each line. [TUNABLE]
+	BotThink time.Duration
+
 	// AppAttestAppID is the Apple App ID (<TeamID>.<bundleId>) that App Attest
 	// attestations and assertions must bind to. The attestation validator hashes
 	// this to the expected rpId. Empty disables App Attest enforcement (the
@@ -41,6 +48,9 @@ func Load() Config {
 		// Secure Enclave on the simulator) skip enforcement; set in Fly secrets
 		// for production: SW_APP_ATTEST_APPID=2M6QRD8T3A.app.strangewords
 		AppAttestAppID: env("SW_APP_ATTEST_APPID", ""),
+		// Robot poet (phase 5): opted-in waiters only; SW_BOT_WAIT_SECONDS<=0 turns it off.
+		BotWindow: time.Duration(envFloat("SW_BOT_WAIT_SECONDS", 25) * float64(time.Second)),
+		BotThink:  time.Duration(envFloat("SW_BOT_THINK_MS", 2500) * float64(time.Millisecond)),
 	}
 }
 
