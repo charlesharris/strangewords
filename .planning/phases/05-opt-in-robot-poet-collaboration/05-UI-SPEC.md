@@ -1,7 +1,7 @@
 ---
 phase: "05"
 slug: opt-in-robot-poet-collaboration
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: "2026-10-26"
