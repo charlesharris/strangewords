@@ -55,7 +55,22 @@ func (s *Session) policy() TurnPolicy { return LookupPolicy(s.PolicyID) }
 // CurrentAuthor is the participant index whose turn it is, derived (never
 // stored) from the TurnPolicy.
 func (s *Session) CurrentAuthor() int {
-	return s.policy().Author(s.CurrentLine, len(s.Participants), s.StartIndex)
+	return s.AuthorOf(s.CurrentLine)
+}
+
+// AuthorOf is the participant index the policy assigns to the given line.
+func (s *Session) AuthorOf(line int) int {
+	return s.policy().Author(line, len(s.Participants), s.StartIndex)
+}
+
+// BotTurn reports whether the session is active and the robot poet authors the
+// current line.
+func (s *Session) BotTurn() bool {
+	if s.Status != StatusActive {
+		return false
+	}
+	a := s.CurrentAuthor()
+	return a >= 0 && a < len(s.Participants) && s.Participants[a].Bot
 }
 
 // IsComplete reports whether every line of the form has been written.

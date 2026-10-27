@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"strangewords/internal/botplayer"
 	"strangewords/internal/config"
 	"strangewords/internal/matchmaker"
 	"strangewords/internal/metrics"
@@ -194,6 +195,11 @@ func (s *Server) handleWaiting(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	sess, err = s.settleBot(r.Context(), sess)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
 	s.touchPresence(r.Context(), sess, idx)
 	v := sess.ViewFor(token)
 	writeJSON(w, http.StatusOK, map[string]any{"state": "matched", "session": v})
@@ -204,6 +210,11 @@ func (s *Server) handleWaiting(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 	sess, _, idx, ok := s.authSession(w, r)
 	if !ok {
+		return
+	}
+	sess, err := s.settleBot(r.Context(), sess)
+	if err != nil {
+		s.fail(w, err)
 		return
 	}
 	s.touchPresence(r.Context(), sess, idx)
@@ -275,6 +286,9 @@ func (s *Server) handleLine(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
+		if sess.BotTurn() {
+			sess.BotReadyAt = now.Add(s.cfg.BotThink).UnixMilli() // arm the robot poet's think time
+		}
 		if err := s.st.SaveSession(r.Context(), sess); err != nil {
 			s.fail(w, err)
 			return
@@ -414,9 +428,59 @@ func (s *Server) authSession(w http.ResponseWriter, r *http.Request) (sess *sess
 	return sess, token, ref.Idx, true
 }
 
-// settleBot is a stub.
+// settleBot lets the robot poet write its current line if it is due, on the
+// human's poll. It returns the session the caller should use from then on.
+//
+// Concurrency contract: the handler's load is only a cheap pre-check. The
+// decision to write is re-made on UpdateSession's fresh read and persisted only
+// through WATCH/MULTI/EXEC, so racing settles yield exactly one bot line (the
+// loser's save aborts), and a human line written between a stale poll's load and
+// its settle survives because the transaction aborts on any later write (or
+// delete, so a dissolved session is never resurrected). An aborted settle
+// persists nothing and returns the latest stored state; a later poll writes the
+// line if it is still due. At most one line per call: no loop, retry or lock.
 func (s *Server) settleBot(ctx context.Context, sess *sessions.Session) (*sessions.Session, error) {
-	return sess, nil
+	now := s.now()
+	if !sess.BotTurn() || now.UnixMilli() < sess.BotReadyAt {
+		return sess, nil
+	}
+	var wrote, completed bool
+	fresh, err := s.st.UpdateSession(ctx, sess.ID, func(f *sessions.Session) (time.Duration, bool) {
+		if !f.BotTurn() || now.UnixMilli() < f.BotReadyAt {
+			return 0, false // another poll already settled this line, or the poem moved on
+		}
+		bot := f.CurrentAuthor()
+		line := botplayer.NextLine(f)
+		f.Lines = append(f.Lines, line)
+		f.CurrentLine++
+		f.Participants[bot].LastSeen = now.UnixMilli()
+		wrote = true
+		if f.IsComplete() {
+			f.Status = sessions.StatusComplete
+			f.CompletedAt = now.UnixMilli()
+			completed = true
+			return store.RevealTTL, true
+		}
+		if f.BotTurn() {
+			f.BotReadyAt = now.Add(s.cfg.BotThink).UnixMilli()
+		}
+		return store.SessionTTL, true
+	})
+	switch {
+	case errors.Is(err, store.ErrConflict):
+		return s.loadSession(ctx, sess.ID)
+	case errors.Is(err, store.ErrNotFound):
+		return nil, errGone
+	case err != nil:
+		return nil, err
+	}
+	if wrote {
+		metrics.LinesSubmitted.Inc()
+		if completed {
+			metrics.PoemsCompleted.Inc()
+		}
+	}
+	return fresh, nil
 }
 
 func (s *Server) loadSession(ctx context.Context, id string) (*sessions.Session, error) {
@@ -445,6 +509,9 @@ func (s *Server) maybePush(ctx context.Context, sess *sessions.Session, i int, k
 		return
 	}
 	p := sess.Participants[i]
+	if p.Bot {
+		return // the robot poet has no push token; nothing to notify
+	}
 	last := time.UnixMilli(p.LastSeen)
 	if p.LastSeen != 0 && s.now().Sub(last) <= s.cfg.PresenceWindow {
 		return // present; no push

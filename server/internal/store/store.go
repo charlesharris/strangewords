@@ -216,9 +216,49 @@ func (s *Store) GetSession(ctx context.Context, id string) (*sessions.Session, e
 	return &sess, nil
 }
 
-// UpdateSession is a compare-and-set for session writers (stub).
-func (s *Store) UpdateSession(ctx context.Context, id string, apply func(*sessions.Session) (time.Duration, bool)) (*sessions.Session, error) {
-	return nil, errors.New("not implemented")
+// UpdateSession is an optimistic compare-and-set for session writers whose
+// decision depends on what they read (the bot settle). It WATCHes the session
+// key, reads and decodes it fresh, and hands that copy to apply, which returns
+// the TTL to store it under and whether to write at all. The write runs in
+// MULTI/EXEC, so if any other write or delete touched the key after the WATCH
+// the EXEC aborts and nothing is stored: that is reported as ErrConflict. One
+// attempt only, no retry loop. WATCH adds no key, TTL or held state, and
+// existing SaveSession callers are unchanged. apply runs synchronously on the
+// caller's goroutine. When apply declines to write, the fresh session is
+// returned unmodified; ErrNotFound means the session is gone.
+func (s *Store) UpdateSession(ctx context.Context, id string, apply func(*sessions.Session) (ttl time.Duration, write bool)) (*sessions.Session, error) {
+	var out *sessions.Session
+	err := s.rdb.Watch(ctx, func(tx *redis.Tx) error {
+		v, err := tx.Get(ctx, sessKey(id)).Bytes()
+		if errors.Is(err, redis.Nil) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		var sess sessions.Session
+		if err := json.Unmarshal(v, &sess); err != nil {
+			return err
+		}
+		out = &sess
+		ttl, write := apply(&sess)
+		if !write {
+			return nil
+		}
+		b, _ := json.Marshal(&sess)
+		_, err = tx.TxPipelined(ctx, func(p redis.Pipeliner) error {
+			p.Set(ctx, sessKey(id), b, ttl)
+			return nil
+		})
+		return err
+	}, sessKey(id))
+	if errors.Is(err, redis.TxFailedErr) {
+		return nil, ErrConflict
+	}
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // DeleteSession erases the session and every associated infrastructural
