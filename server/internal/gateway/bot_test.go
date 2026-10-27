@@ -1,7 +1,9 @@
 package gateway
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -393,4 +395,214 @@ func TestStaleSettleDoesNotOverwriteHumanLine(t *testing.T) {
 			}
 		}
 	})
+}
+
+// doRaw is rig.do without testing.T: it returns the transport error instead of
+// calling t.Fatalf, so it is safe to call from goroutines.
+func (r *rig) doRaw(method, path, token string, body any) (int, []byte, error) {
+	var rdr io.Reader
+	if body != nil {
+		b, _ := json.Marshal(body)
+		rdr = bytes.NewReader(b)
+	}
+	req, err := http.NewRequest(method, r.ts.URL+path, rdr)
+	if err != nil {
+		return 0, nil, err
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := r.cl.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(resp.Body)
+	return resp.StatusCode, data, err
+}
+
+func countKeys(mr *miniredis.Miniredis, prefix string) int {
+	n := 0
+	for _, k := range mr.Keys() {
+		if strings.HasPrefix(k, prefix) {
+			n++
+		}
+	}
+	return n
+}
+
+// TestBotNeverPairsWithoutOptIn: strict opt-in (D-01). Old clients (no body or
+// no flag), allowBot false and wrongly typed values all fail closed, and a plain
+// arrival can never reach the robot poet.
+func TestBotNeverPairsWithoutOptIn(t *testing.T) {
+	cases := []struct {
+		name string
+		body any
+	}{
+		{"no body", nil},
+		{"empty object", map[string]any{}},
+		{"allowBot false", map[string]any{"allowBot": false}},
+		{"allowBot string", map[string]any{"allowBot": "true"}},
+		{"allowBot number", map[string]any{"allowBot": 1}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			b := newBotRig(t, nil)
+			er, raw := b.enterWith(t, tc.body)
+			if er.State != "waiting" {
+				t.Fatalf("expected waiting, got %s", raw)
+			}
+			b.clock.Advance(10 * time.Minute)
+			wr, raw2 := b.poll(t, er.ParticipantToken)
+			if wr.State != "waiting" {
+				t.Fatalf("still expected waiting after 10 minutes, got %s", raw2)
+			}
+			if n := countKeys(b.mr, "sw:sess:"); n != 0 {
+				t.Fatalf("%d session keys created without opt-in", n)
+			}
+			if strings.Contains(string(raw), "partnerIsBot") || strings.Contains(string(raw2), "partnerIsBot") {
+				t.Fatalf("partnerIsBot leaked: %s / %s", raw, raw2)
+			}
+		})
+	}
+
+	t.Run("plain arrival after a bot pairing", func(t *testing.T) {
+		b := newBotRig(t, nil)
+		a, _ := b.enterWith(t, map[string]any{"allowBot": true})
+		b.clock.Advance(b.cfg.BotWindow)
+		if wr, raw := b.poll(t, a.ParticipantToken); wr.State != "matched" || !wr.Session.PartnerIsBot {
+			t.Fatalf("A should be bot-paired, got %s", raw)
+		}
+		pl, rawEnter := b.enterWith(t, map[string]any{})
+		if pl.State != "waiting" {
+			t.Fatalf("plain arrival must wait, got %s", rawEnter)
+		}
+		b.clock.Advance(10 * time.Minute)
+		wr, rawPoll := b.poll(t, pl.ParticipantToken)
+		if wr.State != "waiting" {
+			t.Fatalf("plain arrival must still wait, got %s", rawPoll)
+		}
+		if strings.Contains(string(rawEnter), "partnerIsBot") || strings.Contains(string(rawPoll), "partnerIsBot") {
+			t.Fatalf("partnerIsBot leaked to a plain arrival: %s / %s", rawEnter, rawPoll)
+		}
+	})
+}
+
+// TestBotFallbackDisabledByKillSwitch: SW_BOT_WAIT_SECONDS <= 0 turns the robot
+// poet off even for an opted-in waiter.
+func TestBotFallbackDisabledByKillSwitch(t *testing.T) {
+	b := newBotRig(t, func(c *config.Config) { c.BotWindow = 0 })
+	paired0 := testutil.ToFloat64(metrics.BotPaired)
+	er, _ := b.enterWith(t, map[string]any{"allowBot": true})
+	b.clock.Advance(10 * time.Minute)
+	if wr, raw := b.poll(t, er.ParticipantToken); wr.State != "waiting" {
+		t.Fatalf("kill switch on: expected waiting, got %s", raw)
+	}
+	if d := testutil.ToFloat64(metrics.BotPaired) - paired0; d != 0 {
+		t.Fatalf("BotPaired delta = %v, want 0", d)
+	}
+}
+
+// TestOverlappingOptedInHumansPairTogether (D-03): two opted-in humans pair with
+// each other, never with the robot poet.
+func TestOverlappingOptedInHumansPairTogether(t *testing.T) {
+	b := newBotRig(t, nil)
+	paired0 := testutil.ToFloat64(metrics.BotPaired)
+	matched0 := testutil.ToFloat64(metrics.Matched)
+
+	a, _ := b.enterWith(t, map[string]any{"allowBot": true})
+	if a.State != "waiting" {
+		t.Fatalf("A should wait, got %q", a.State)
+	}
+	b.clock.Advance(5 * time.Second)
+	bb, rawB := b.enterWith(t, map[string]any{"allowBot": true})
+	if bb.State != "matched" || bb.Session == nil || bb.Session.PartnerIsBot || strings.Contains(string(rawB), "partnerIsBot") {
+		t.Fatalf("B should match a human, got %s", rawB)
+	}
+	b.clock.Advance(b.cfg.BotWindow)
+	wr, rawA := b.poll(t, a.ParticipantToken)
+	if wr.State != "matched" || wr.Session == nil || wr.Session.SessionID != bb.Session.SessionID || wr.Session.PartnerIsBot {
+		t.Fatalf("A should be in B's human session, got %s", rawA)
+	}
+	if n := countKeys(b.mr, "sw:sess:"); n != 1 {
+		t.Fatalf("want exactly 1 session key, got %d", n)
+	}
+	if d := testutil.ToFloat64(metrics.BotPaired) - paired0; d != 0 {
+		t.Fatalf("BotPaired delta = %v, want 0", d)
+	}
+	if d := testutil.ToFloat64(metrics.Matched) - matched0; d != 1 {
+		t.Fatalf("Matched delta = %v, want 1", d)
+	}
+}
+
+// TestHumanVsBotRaceSingleSession: at the window boundary a bot-claim poll and a
+// human arrival race for one waiter. Exactly one session may result, and the
+// waiter's follow-up view must match the winner.
+func TestHumanVsBotRaceSingleSession(t *testing.T) {
+	for i := 0; i < 50; i++ {
+		b := newBotRig(t, nil)
+		a, _ := b.enterWith(t, map[string]any{"allowBot": true})
+		b.clock.Advance(b.cfg.BotWindow)
+
+		var (
+			wg       sync.WaitGroup
+			start    = make(chan struct{})
+			bEnter   enterResp
+			bEnterOK bool
+		)
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			<-start
+			code, raw, err := b.doRaw("GET", "/v1/waiting", a.ParticipantToken, nil)
+			if err != nil || code != http.StatusOK {
+				t.Errorf("iter %d: A poll: %d %v %s", i, code, err, raw)
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			<-start
+			code, raw, err := b.doRaw("POST", "/v1/enter", "", map[string]any{})
+			if err != nil || code != http.StatusOK {
+				t.Errorf("iter %d: B enter: %d %v %s", i, code, err, raw)
+				return
+			}
+			if err := json.Unmarshal(raw, &bEnter); err != nil {
+				t.Errorf("iter %d: B enter decode: %v", i, err)
+				return
+			}
+			bEnterOK = true
+		}()
+		close(start)
+		wg.Wait()
+		if t.Failed() || !bEnterOK {
+			t.Fatalf("iter %d: concurrent requests failed", i)
+		}
+
+		if n := countKeys(b.mr, "sw:sess:"); n != 1 {
+			t.Fatalf("iter %d: want exactly 1 session key, got %d", i, n)
+		}
+		wr, raw := b.poll(t, a.ParticipantToken)
+		if wr.State != "matched" || wr.Session == nil {
+			t.Fatalf("iter %d: A should be matched, got %s", i, raw)
+		}
+		switch bEnter.State {
+		case "matched":
+			if wr.Session.PartnerIsBot {
+				t.Fatalf("iter %d: B matched a human yet A's view says bot: %s", i, raw)
+			}
+			if bEnter.Session == nil || wr.Session.SessionID != bEnter.Session.SessionID {
+				t.Fatalf("iter %d: A and B are in different sessions", i)
+			}
+		case "waiting":
+			if !wr.Session.PartnerIsBot {
+				t.Fatalf("iter %d: B is waiting so A must hold the bot session: %s", i, raw)
+			}
+			if bw, rawB := b.poll(t, bEnter.ParticipantToken); bw.State != "waiting" {
+				t.Fatalf("iter %d: B should still wait, got %s", i, rawB)
+			}
+		default:
+			t.Fatalf("iter %d: unexpected B state %q", i, bEnter.State)
+		}
+	}
 }
