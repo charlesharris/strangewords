@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 02
-current_phase_name: iOS Client Logic Suites
-status: verifying
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-10-26T23:48:38.528Z"
-last_activity: 2026-10-26
-last_activity_desc: Phase 02 execution started
-state_head: e00a5806f4738afacc2f52305e3413fc4bae5ccb
+current_phase: 05
+current_phase_name: Opt-In Robot Poet Collaboration
+status: executing
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-10-27T22:27:54.288Z"
+last_activity: 2026-10-27
+last_activity_desc: Phase 05 execution started
+state_head: 9b99a28797a2c3c9df9cbfb82a9e393d6dcc2674
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 1
-  total_plans: 6
-  completed_plans: 6
-  percent: 25
+  total_plans: 11
+  completed_plans: 7
+  percent: 20
 ---
 
 # Project State
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-14)
 
 **Core value:** A trustworthy, automated proof that the core experience works — so every future change can be verified against a known-good baseline instead of memory and manual poking.
-**Current focus:** Phase 02 — iOS Client Logic Suites
+**Current focus:** Phase 05 — Opt-In Robot Poet Collaboration
 
 ## Current Position
 
-Phase: 02 (iOS Client Logic Suites) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-10-26 - Completed quick task 261026-p8l: Upgrade the robot poet to a generative grammar
+Phase: 05 (Opt-In Robot Poet Collaboration) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-10-27 — Phase 05 execution started
 
-Progress: [███░░░░░░░] 25%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 02 P02 | 4 min | 2 tasks | 2 files |
 | Phase 02 P03 | 6 min | 3 tasks | 2 files |
 | Phase 02 P04 | 3 min | 2 tasks | 3 files |
+| Phase 05 P01 | 14 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,8 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-03: Mock leave/dismiss now dissolve and erase the poem (D-11 judgment, reversible, not a defect); turn-violation and idempotent-replay divergences pinned as DRIFT
 - [Phase 02]: 02-04: PoemNaming goldens not re-captured; host candidates matched iOS 18.6 simulator
 - [Phase 02]: 02-04: Syllables known misses pinned at current wrong counts (D-12), heuristic unchanged
+- [Phase 05]: 05-01: robot poet is a tokenless, pre-dismissed flagged participant, never a queue member; bot lines are poll-driven poet replays persisted only via WATCH/MULTI/EXEC UpdateSession (no worker, lock or new Redis key)
+- [Phase 05]: 05-01: think time is armed in handleLine (BotReadyAt) so a stale settle cannot slip a bot line in right after the human's; partnerIsBot computed only in ViewFor
 
 ### Pending Todos
 
@@ -109,6 +112,7 @@ None yet.
 | 261026-p8f | Serve a privacy policy page from the backend | 2026-10-26 | 4b0f71c | [261026-p8f-serve-a-privacy-policy-page-from-the-bac](./quick/261026-p8f-serve-a-privacy-policy-page-from-the-bac/) |
 | 261026-p8l | Upgrade the robot poet to a generative grammar | 2026-10-26 | 9147a60 | [261026-p8l-upgrade-the-robot-poet-to-a-generative-g](./quick/261026-p8l-upgrade-the-robot-poet-to-a-generative-g/) |
 | 8 | fast: fix run.sh Simulator launch for Xcode 27 (DeviceHub) + Swift 6 isolation warning | 2026-10-26 | e00a580 | — |
+| 9 | fast: rename user-facing app name to "Strange Words" | 2026-10-27 | eda3ba3 | — |
 
 ### Roadmap Evolution
 
@@ -124,6 +128,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-15T18:38:49.062Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-10-27T22:27:54.190Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None
