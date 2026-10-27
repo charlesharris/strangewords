@@ -11,6 +11,13 @@ struct ComposeView: View {
     var body: some View {
         @Bindable var model = model
         VStack(spacing: 28) {
+            // Persistent disclosure (D-04): in layout, absent for human partners.
+            if let caption = PartnerPresence.caption(partnerIsBot: session.partnerIsBot, finished: false) {
+                PartnerPresence(caption: caption)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
+            }
+
             Spacer(minLength: 24)
 
             // Lines written so far, accumulating visibly.
@@ -32,7 +39,12 @@ struct ComposeView: View {
 
             Spacer(minLength: 24)
         }
-        .onAppear { focused = session.yourTurn }
+        .onAppear {
+            focused = session.yourTurn
+            if session.partnerIsBot {
+                AccessibilityNotification.Announcement(PartnerPresence.arrivalAnnouncement).post()
+            }
+        }
         .onChange(of: session.yourTurn) { _, mine in focused = mine }
     }
 
@@ -99,17 +111,18 @@ struct ComposeView: View {
     // MARK: - Their turn
 
     private var theirTurn: some View {
-        VStack(spacing: 12) {
-            Text("the stranger is with the poem now")
+        let copy = PartnerPresence.theirTurn(partnerIsBot: session.partnerIsBot)
+        return VStack(spacing: 12) {
+            Text(copy.primary)
                 .font(Theme.chrome)
                 .foregroundStyle(palette.secondary)
-            Text("it's fine to put this down — you'll be told when there's a line for you")
+            Text(copy.secondary)
                 .font(Theme.label)
                 .foregroundStyle(palette.secondary.opacity(0.8))
                 .multilineTextAlignment(.center)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Waiting for the stranger to write their line.")
+        .accessibilityLabel(copy.accessibility)
     }
 
     private var linesLabel: String {

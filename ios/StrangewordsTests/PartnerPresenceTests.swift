@@ -115,8 +115,13 @@ struct PartnerPresenceTests {
         }
     }
 
+    /// The their-turn secondary line is the one continuation line: UI-SPEC pins it
+    /// as "its line will be here in a moment", and the primary line above it names
+    /// the robot poet, so it is checked against the primary instead.
     @Test func everyRobotStringNamesTheRobotPoet() {
-        for s in robotStrings {
+        let continuation = PartnerPresence.theirTurn(partnerIsBot: true).secondary
+        #expect(PartnerPresence.theirTurn(partnerIsBot: true).primary.contains("robot poet"))
+        for s in robotStrings where s != continuation {
             #expect(s.lowercased().contains("robot poet"), "does not name the robot poet: \(s)")
         }
     }

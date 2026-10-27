@@ -12,6 +12,11 @@ struct RevealView: View {
 
     var body: some View {
         VStack(spacing: 30) {
+            if let caption = PartnerPresence.caption(partnerIsBot: session.partnerIsBot, finished: true) {
+                PartnerPresence(caption: caption)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
+            }
             Spacer()
             VStack(spacing: 18) {
                 ForEach(Array(session.lines.enumerated()), id: \.offset) { _, line in

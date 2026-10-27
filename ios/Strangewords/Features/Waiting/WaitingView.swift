@@ -20,10 +20,19 @@ struct WaitingView: View {
                 .animation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true), value: breathe)
                 .accessibilityHidden(true)
 
-            Text(connecting ? "stepping in…" : "no one else is here just yet")
-                .font(Theme.chrome)
-                .foregroundStyle(palette.secondary)
-                .multilineTextAlignment(.center)
+            VStack(spacing: 12) {
+                Text(connecting ? "stepping in…" : "no one else is here just yet")
+                    .font(Theme.chrome)
+                    .foregroundStyle(palette.secondary)
+                    .multilineTextAlignment(.center)
+                if let line = PartnerPresence.waitingLine(allowBot: model.allowBot, connecting: connecting) {
+                    Text(line)
+                        .font(Theme.label)
+                        .foregroundStyle(palette.secondary.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             Spacer()
 
             if !connecting {
@@ -35,6 +44,6 @@ struct WaitingView: View {
         }
         .onAppear { breathe = true }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(connecting ? "Connecting" : "Waiting for a stranger to arrive")
+        .accessibilityLabel(PartnerPresence.waitingAccessibility(allowBot: model.allowBot, connecting: connecting))
     }
 }
