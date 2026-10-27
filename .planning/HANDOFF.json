@@ -1,0 +1,12 @@
+{
+  "contract": "1.0.0",
+  "paused_at": "2026-10-26T23:59:00Z",
+  "kind": "phase",
+  "phase": "05",
+  "phase_dir": ".planning/phases/05-opt-in-robot-poet-collaboration",
+  "handoff": ".planning/phases/05-opt-in-robot-poet-collaboration/.continue-here.md",
+  "position": "plan-phase: planner mid-run (minimal scope, 2 plans max); inputs CONTEXT/RESEARCH/UI-SPEC(approved)/PATTERNS all committed",
+  "next": "if 05-*-PLAN.md exist: plan-checker -> execute -> push main (deploys server) -> scripts/archive-upload.sh; else respawn /gsd-plan-phase 5 with minimal-scope guidance",
+  "authorizations": ["execute checked plans without review pause", "push main", "upload TestFlight build"],
+  "resume_command": "/gsd-resume-work"
+}
