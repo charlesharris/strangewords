@@ -126,7 +126,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4. Phases 2 and 3 depend only
 **Goal:** A user can opt in (default OFF) to being paired with the robot poet when no human is waiting. Wire-contract flag on POST /v1/enter (allowBot); matchmaker segregation so the bot only ever pairs with opted-in participants; the app's first Settings surface with the persisted toggle; bot disclosure in the session UI; LocalBackend mirrors the new contract; tests on both sides. Locked decisions: strict opt-in default OFF; bot disclosed in-session; generation uses server/internal/poet (no external AI).
 **Requirements**: P5-OPTIN, P5-FALLBACK, P5-DISCLOSE, P5-ANON, P5-SETTINGS, P5-PARITY, P5-TESTS
 **Depends on:** Phase 4
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans executed
 
 Plans:
 **Wave 1**
@@ -136,4 +136,4 @@ Plans:
 - [x] 05-02-PLAN.md — iOS wire and model: a tolerant partnerIsBot decode, SettingsStore pref.allowBot (default OFF) behind AppModel.allowBot, and Backend.enter(pushToken:allowBot:) mirrored in APIClient, LocalBackend (the opted-in wait-then-robot-poet arc) and FakeBackend
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 05-03-PLAN.md — iOS UI: the Threshold gear and settings sheet, the waiting soft line, and the robot-poet chip with honest copy in Compose and Reveal, with copy pinned by PartnerPresenceTests
+- [x] 05-03-PLAN.md — iOS UI: the Threshold gear and settings sheet, the waiting soft line, and the robot-poet chip with honest copy in Compose and Reveal, with copy pinned by PartnerPresenceTests

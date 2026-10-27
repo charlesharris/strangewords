@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Opt-In Robot Poet Collaboration
-status: executing
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-10-27T22:45:59.609Z"
+status: verifying
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-10-27T23:10:50.884Z"
 last_activity: 2026-10-27
 last_activity_desc: Phase 05 execution started
-state_head: 450a024fbbc9447a0392869769edf7725dbc4f3b
+state_head: 7a6a0bce081e4484650af1d08c20b56fe41a3552
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 11
-  completed_plans: 8
+  completed_plans: 9
   percent: 20
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 
 Phase: 05 (Opt-In Robot Poet Collaboration) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-27 — Phase 05 execution started
 
 Progress: [██░░░░░░░░] 20%
@@ -64,6 +64,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02 P04 | 3 min | 2 tasks | 3 files |
 | Phase 05 P01 | 14 min | 3 tasks | 9 files |
 | Phase 05 P02 | 16 min | 2 tasks | 12 files |
+| Phase 05 P03 | 20 min | 1 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,7 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-02: pref.allowBot lives outside the sw. namespace (SettingsStore, sibling of TokenStore) so TokenStore.clear() and HostIsolationTests are untouched
 - [Phase 05]: 05-02: begin() captures AppModel.allowBot before spawning its task; Backend.enter has no overload omitting allowBot
 - [Phase 05]: 05-02: LocalBackend opted-in users always wait the full botWindow (mock has no human pool to race); recorded as DRIFT
+- [Phase 05]: 05-03: their-turn secondary line stays locked UI-SPEC copy; voice-rule test checks the robot poet is named on the primary line
 
 ### Pending Todos
 
@@ -132,6 +134,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-27T22:45:59.503Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-10-27T23:10:50.779Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None
