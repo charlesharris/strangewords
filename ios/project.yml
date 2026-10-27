@@ -29,6 +29,11 @@ targets:
       path: Strangewords/Info.plist
       properties:
         CFBundleDisplayName: Strange Words
+        # XcodeGen writes literal 1.0/1 defaults unless these reference the build
+        # settings; without them MARKETING_VERSION and the archive script's
+        # CURRENT_PROJECT_VERSION timestamp stamp never reach the bundle.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         # The app's only encryption is the OS-provided HTTPS via URLSession, which
         # is exempt from export documentation. Declaring it here skips App Store
         # Connect's per-build encryption questionnaire. Revisit if the app ever
