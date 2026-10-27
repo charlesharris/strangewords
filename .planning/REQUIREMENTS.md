@@ -45,7 +45,7 @@ Added with Phase 5 (Opt-In Robot Poet Collaboration). Each ID traces to the lock
 - [ ] **P5-DISCLOSE**: Every view of a robot-poet session discloses it. `partnerIsBot` is computed only server-side, decoded tolerantly on iOS, and shown as named presence ("the robot poet") for the whole session in Compose and Reveal (D-04)
 - [x] **P5-ANON**: The anonymity model holds. The opt-in bit lives only on the TTL-bound wait entry, no new Redis keys or locks are added, zero `sw:` keys remain after dissolution, and the on-device preference sits outside the identity namespace and is never an identifier (the CONTEXT anonymity constraint)
 - [ ] **P5-SETTINGS**: A quiet gear on the Threshold opens a minimal settings sheet holding the one robot-poet toggle, persisted in a UserDefaults sibling of `TokenStore` (D-02)
-- [ ] **P5-PARITY**: The wire change is mirrored in `Models.swift`, the `Backend` protocol, `APIClient` and `LocalBackend` (and the test `FakeBackend`), so mock mode walks the same wait-then-robot-poet arc as the server (the CONTEXT mock/real parity constraint)
+- [x] **P5-PARITY**: The wire change is mirrored in `Models.swift`, the `Backend` protocol, `APIClient` and `LocalBackend` (and the test `FakeBackend`), so mock mode walks the same wait-then-robot-poet arc as the server (the CONTEXT mock/real parity constraint)
 - [ ] **P5-TESTS**: Every behavior above ships with automated proof on both sides: Go tests under `go test ./...` and Swift Testing suites under `scripts/test-ios.sh` (the CONTEXT tests-on-both-sides constraint)
 
 ## v2 Requirements
@@ -110,7 +110,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | P5-DISCLOSE | Phase 5 | Pending |
 | P5-ANON | Phase 5 | Complete |
 | P5-SETTINGS | Phase 5 | Pending |
-| P5-PARITY | Phase 5 | Pending |
+| P5-PARITY | Phase 5 | Complete |
 | P5-TESTS | Phase 5 | Pending |
 
 **Coverage:**
