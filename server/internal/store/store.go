@@ -28,6 +28,10 @@ const (
 // ErrNotFound is returned when a key has expired or never existed.
 var ErrNotFound = errors.New("not found")
 
+// ErrConflict is returned by UpdateSession when the session changed after it
+// was read; nothing was written.
+var ErrConflict = errors.New("session changed concurrently")
+
 // Kind distinguishes what a participant token currently points at.
 type Kind string
 
@@ -210,6 +214,11 @@ func (s *Store) GetSession(ctx context.Context, id string) (*sessions.Session, e
 		return nil, err
 	}
 	return &sess, nil
+}
+
+// UpdateSession is a compare-and-set for session writers (stub).
+func (s *Store) UpdateSession(ctx context.Context, id string, apply func(*sessions.Session) (time.Duration, bool)) (*sessions.Session, error) {
+	return nil, errors.New("not implemented")
 }
 
 // DeleteSession erases the session and every associated infrastructural

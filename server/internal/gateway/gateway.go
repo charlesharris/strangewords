@@ -414,6 +414,11 @@ func (s *Server) authSession(w http.ResponseWriter, r *http.Request) (sess *sess
 	return sess, token, ref.Idx, true
 }
 
+// settleBot is a stub.
+func (s *Server) settleBot(ctx context.Context, sess *sessions.Session) (*sessions.Session, error) {
+	return sess, nil
+}
+
 func (s *Server) loadSession(ctx context.Context, id string) (*sessions.Session, error) {
 	sess, err := s.st.GetSession(ctx, id)
 	if errors.Is(err, store.ErrNotFound) {

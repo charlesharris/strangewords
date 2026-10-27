@@ -1,6 +1,9 @@
 package gateway
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -18,7 +21,9 @@ import (
 	"strangewords/internal/matchmaker"
 	"strangewords/internal/metrics"
 	"strangewords/internal/moderation"
+	"strangewords/internal/poet"
 	"strangewords/internal/push"
+	"strangewords/internal/sessions"
 	"strangewords/internal/store"
 )
 
@@ -50,6 +55,8 @@ type botRig struct {
 	*rig
 	cfg   config.Config
 	clock *fakeClock
+	st    *store.Store
+	srv   *Server
 }
 
 // newBotRig mirrors newRig's wiring but injects the clock before the HTTP
@@ -82,7 +89,25 @@ func newBotRig(t *testing.T, mutate func(*config.Config)) *botRig {
 		rig:   &rig{ts: ts, mr: mr, cl: ts.Client()},
 		cfg:   cfg,
 		clock: clock,
+		st:    st,
+		srv:   srv,
 	}
+}
+
+// restart builds a second Server (new store, matchmaker, HTTP listener) over the
+// same miniredis, config and clock: a stand-in for a server restart mid-poem.
+func (b *botRig) restart(t *testing.T) *rig {
+	t.Helper()
+	rdb := redis.NewClient(&redis.Options{Addr: b.mr.Addr()})
+	t.Cleanup(func() { _ = rdb.Close() })
+	st := store.New(rdb)
+	mm := matchmaker.New(st)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	srv := New(st, mm, push.Noop{Log: log}, moderation.LogSink{Log: log}, log, b.cfg)
+	srv.now = b.clock.Now
+	ts := httptest.NewServer(srv.Routes())
+	t.Cleanup(ts.Close)
+	return &rig{ts: ts, mr: b.mr, cl: ts.Client()}
 }
 
 // enterWith posts /v1/enter with an arbitrary body (nil sends no body at all).
@@ -158,4 +183,214 @@ func TestBotFallbackTracer(t *testing.T) {
 	if d := testutil.ToFloat64(metrics.Matched) - matched0; d != 0 {
 		t.Fatalf("Matched delta = %v, want 0", d)
 	}
+}
+
+// getView GETs /v1/session/{id} through rig r and decodes the view.
+func getView(t *testing.T, r *rig, token, id string) (sessions.View, []byte) {
+	t.Helper()
+	code, raw := r.do(t, "GET", "/v1/session/"+id, token, nil)
+	if code != http.StatusOK {
+		t.Fatalf("get session: %d %s", code, raw)
+	}
+	var v sessions.View
+	mustJSON(t, raw, &v)
+	return v, raw
+}
+
+// postLine submits a line through rig r and decodes the returned view.
+func postLine(t *testing.T, r *rig, token, id string, line int, text, idem string) (sessions.View, []byte) {
+	t.Helper()
+	code, raw := r.do(t, "POST", "/v1/session/"+id+"/line", token,
+		map[string]any{"line": line, "text": text, "idemKey": idem})
+	if code != http.StatusOK {
+		t.Fatalf("post line %d: %d %s", line, code, raw)
+	}
+	var v sessions.View
+	mustJSON(t, raw, &v)
+	return v, raw
+}
+
+func assertNoKeysWithPrefix(t *testing.T, mr *miniredis.Miniredis, prefix string) {
+	t.Helper()
+	for _, k := range mr.Keys() {
+		if strings.HasPrefix(k, prefix) {
+			t.Fatalf("left key %q behind", k)
+		}
+	}
+}
+
+// TestBotPoemCompletesAndLeavesNoKeys plays a whole haiku against the robot
+// poet in both start orders: think time is honored, a long gap yields exactly
+// one line per settle, a restarted server produces the next line, every bot
+// line is clean and on target, and one dismiss leaves zero sw: keys.
+func TestBotPoemCompletesAndLeavesNoKeys(t *testing.T) {
+	human := []string{"an old silent pond", "a frog jumps into the pond", "splash silence again"}
+	form := sessions.LookupForm("haiku")
+	seenBotFirst, seenHumanFirst := false, false
+
+	for iter := 0; iter < 64 && !(seenBotFirst && seenHumanFirst); iter++ {
+		b := newBotRig(t, nil)
+		er, _ := b.enterWith(t, map[string]any{"allowBot": true})
+		tok := er.ParticipantToken
+		b.clock.Advance(b.cfg.BotWindow)
+		wr, raw := b.poll(t, tok)
+		if wr.State != "matched" || wr.Session == nil || !wr.Session.PartnerIsBot {
+			t.Fatalf("expected bot-matched view, got %s", raw)
+		}
+		view := *wr.Session
+		if view.YourTurn {
+			seenHumanFirst = true
+		} else {
+			seenBotFirst = true
+		}
+		restarted := b.restart(t)
+
+		humanN := 0
+		for guard := 0; view.Status == sessions.StatusActive; guard++ {
+			if guard > 10 {
+				t.Fatalf("poem did not finish: %+v", view)
+			}
+			if view.YourTurn {
+				var raw []byte
+				view, raw = postLine(t, b.rig, tok, view.SessionID, view.CurrentLine, human[humanN], fmt.Sprintf("h%d", humanN))
+				if !strings.Contains(string(raw), `"partnerIsBot":true`) {
+					t.Fatalf("line response lost partnerIsBot: %s", raw)
+				}
+				humanN++
+				continue
+			}
+			before := len(view.Lines)
+			// Think time honored: an immediate poll adds no line.
+			v, _ := getView(t, b.rig, tok, view.SessionID)
+			if len(v.Lines) != before {
+				t.Fatalf("bot wrote before its think time: %q", v.Lines)
+			}
+			// A long gap (backgrounded app), served by a restarted server.
+			b.clock.Advance(b.cfg.BotThink + 10*time.Minute)
+			view, _ = getView(t, restarted, tok, view.SessionID)
+			if len(view.Lines) != before+1 {
+				t.Fatalf("expected exactly one new line after the gap, had %d now %d", before, len(view.Lines))
+			}
+			line := view.Lines[before]
+			if got, err := sessions.CleanLine(line); err != nil || got != line {
+				t.Fatalf("bot line %q not CleanLine-identical (%v)", line, err)
+			}
+			if want := *form.Targets[before]; poet.Count(line) != want {
+				t.Fatalf("bot line %q counts %d, want %d", line, poet.Count(line), want)
+			}
+		}
+
+		if len(view.Lines) != 3 || view.Status != sessions.StatusComplete || !view.PartnerIsBot {
+			t.Fatalf("finished poem wrong: %+v", view)
+		}
+		code, raw := b.do(t, "POST", "/v1/session/"+view.SessionID+"/dismiss", tok, nil)
+		if code != http.StatusOK || !strings.Contains(string(raw), `"dissolved"`) {
+			t.Fatalf("single dismiss should dissolve: %d %s", code, raw)
+		}
+		if code, _ := b.do(t, "GET", "/v1/session/"+view.SessionID, tok, nil); code != http.StatusGone {
+			t.Fatalf("after dissolution expected 410, got %d", code)
+		}
+		assertNoKeysWithPrefix(t, b.mr, "sw:")
+	}
+	if !seenBotFirst || !seenHumanFirst {
+		t.Fatalf("start orders not both observed: botFirst=%v humanFirst=%v", seenBotFirst, seenHumanFirst)
+	}
+}
+
+// dueBot opens a bot session with the given start index and advances until the
+// bot's line k is due. It returns the rig, token, session id and k. The bot's
+// line k is always followed by the human's line k+1.
+func dueBot(t *testing.T, start int) (b *botRig, tok, id string, k int) {
+	t.Helper()
+	b = newBotRig(t, nil)
+	er, _ := b.enterWith(t, map[string]any{"allowBot": true})
+	tok = er.ParticipantToken
+	b.clock.Advance(b.cfg.BotWindow)
+	wr, raw := b.poll(t, tok)
+	if wr.State != "matched" || wr.Session == nil {
+		t.Fatalf("expected matched, got %s", raw)
+	}
+	id = wr.Session.SessionID
+	// Force the start order so both are covered deterministically.
+	sess, err := b.st.GetSession(context.Background(), id)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	sess.StartIndex = start
+	if err := b.st.SaveSession(context.Background(), sess); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	k = 0
+	if start == 0 { // human writes line 0, then the bot's line 1 is next
+		postLine(t, b.rig, tok, id, 0, "an old silent pond", "h0")
+		k = 1
+	}
+	b.clock.Advance(b.cfg.BotThink)
+	return b, tok, id, k
+}
+
+// TestStaleSettleDoesNotOverwriteHumanLine pins the interleaving where a poll
+// loads on the bot's turn, another poll settles, the human writes the next
+// line, and the first poll then tries to settle.
+func TestStaleSettleDoesNotOverwriteHumanLine(t *testing.T) {
+	const humanText = "a quiet kettle sings"
+	ctx := context.Background()
+
+	t.Run("stale handler load", func(t *testing.T) {
+		for start := 0; start < 2; start++ {
+			b, tok, id, k := dueBot(t, start)
+			stale, err := b.st.GetSession(ctx, id) // poll A's load
+			if err != nil {
+				t.Fatalf("load: %v", err)
+			}
+			v, _ := getView(t, b.rig, tok, id) // poll B settles
+			if len(v.Lines) != k+1 {
+				t.Fatalf("start %d: poll B should settle line %d, lines %q", start, k, v.Lines)
+			}
+			postLine(t, b.rig, tok, id, k+1, humanText, "stale-h")
+
+			got, err := b.srv.settleBot(ctx, stale)
+			if err != nil {
+				t.Fatalf("start %d: settleBot: %v", start, err)
+			}
+			stored, err := b.st.GetSession(ctx, id)
+			if err != nil {
+				t.Fatalf("reload: %v", err)
+			}
+			if len(stored.Lines) != k+2 || stored.Lines[k+1] != humanText || stored.CurrentLine != k+2 {
+				t.Fatalf("start %d: human line lost: stored lines %q currentLine %d", start, stored.Lines, stored.CurrentLine)
+			}
+			if got.CurrentLine != stored.CurrentLine {
+				t.Fatalf("start %d: settleBot returned currentLine %d, stored %d", start, got.CurrentLine, stored.CurrentLine)
+			}
+		}
+	})
+
+	t.Run("write inside the read-to-save window", func(t *testing.T) {
+		for start := 0; start < 2; start++ {
+			b, tok, id, k := dueBot(t, start)
+			_, err := b.st.UpdateSession(ctx, id, func(fresh *sessions.Session) (time.Duration, bool) {
+				getView(t, b.rig, tok, id) // poll B settles, writing the key
+				postLine(t, b.rig, tok, id, k+1, humanText, "window-h")
+				fresh.Lines = append(fresh.Lines, "stale settle line")
+				fresh.CurrentLine++
+				return store.SessionTTL, true
+			})
+			if !errors.Is(err, store.ErrConflict) {
+				t.Fatalf("start %d: want store.ErrConflict, got %v", start, err)
+			}
+			stored, err := b.st.GetSession(ctx, id)
+			if err != nil {
+				t.Fatalf("reload: %v", err)
+			}
+			if len(stored.Lines) != k+2 || stored.Lines[k+1] != humanText {
+				t.Fatalf("start %d: human line lost: stored lines %q", start, stored.Lines)
+			}
+			for _, l := range stored.Lines {
+				if l == "stale settle line" {
+					t.Fatalf("start %d: stale line was stored: %q", start, stored.Lines)
+				}
+			}
+		}
+	})
 }
