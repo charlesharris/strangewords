@@ -8,7 +8,11 @@ import Foundation
 /// Selected in `AppModel.init`: set `SW_LOCAL_MOCK=1` (or run `./run.sh --mock`)
 /// to use `LocalBackend`; otherwise the real `APIClient`.
 protocol Backend: Sendable {
-    func enter(pushToken: String?) async throws -> EnterResponse
+    /// `allowBot` is the user's opt-in, for this one wait only, to be paired with
+    /// the robot poet when no stranger arrives. The server treats it as a
+    /// preference of the caller alone; an older server ignores the key and stays
+    /// humans-only. There is deliberately no overload that omits it.
+    func enter(pushToken: String?, allowBot: Bool) async throws -> EnterResponse
     func waiting(token: String) async throws -> WaitingResponse
     func getSession(id: String, token: String) async throws -> SessionView
     func submitLine(id: String, token: String, line: Int, text: String, idemKey: String) async throws -> SessionView

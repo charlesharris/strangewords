@@ -30,19 +30,22 @@ actor FakeBackend: Backend {
         let line: Int?
         let text: String?
         let idemKey: String?
+        /// The opt-in an `enter` call carried; nil for every other kind.
+        let allowBot: Bool?
 
         private let continuation: CheckedContinuation<Any, Error>
         private let lock = NSLock()
         private var spent = false
 
         fileprivate init(kind: Kind, id: String?, token: String?, line: Int?, text: String?,
-                         idemKey: String?, continuation: CheckedContinuation<Any, Error>) {
+                         idemKey: String?, allowBot: Bool?, continuation: CheckedContinuation<Any, Error>) {
             self.kind = kind
             self.id = id
             self.token = token
             self.line = line
             self.text = text
             self.idemKey = idemKey
+            self.allowBot = allowBot
             self.continuation = continuation
         }
 
@@ -98,8 +101,8 @@ actor FakeBackend: Backend {
 
     // MARK: - Backend
 
-    func enter(pushToken: String?) async throws -> EnterResponse {
-        let value = try await park(.enter)
+    func enter(pushToken: String?, allowBot: Bool) async throws -> EnterResponse {
+        let value = try await park(.enter, allowBot: allowBot)
         return try cast(value, to: EnterResponse.self, for: .enter)
     }
 
@@ -143,12 +146,12 @@ actor FakeBackend: Backend {
     // MARK: - Plumbing
 
     private func park(_ kind: Kind, id: String? = nil, token: String? = nil, line: Int? = nil,
-                      text: String? = nil, idemKey: String? = nil) async throws -> Any {
+                      text: String? = nil, idemKey: String? = nil, allowBot: Bool? = nil) async throws -> Any {
         calls.append(kind)
         if drained { throw CancellationError() }
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Any, Error>) in
             let pending = Pending(kind: kind, id: id, token: token, line: line, text: text,
-                                  idemKey: idemKey, continuation: continuation)
+                                  idemKey: idemKey, allowBot: allowBot, continuation: continuation)
             parked.append(pending)
             sink.yield(pending)
         }

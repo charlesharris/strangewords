@@ -14,13 +14,14 @@ struct LocalBackendTests {
     @Test func defaultsMatchShippedPacing() {
         #expect(LocalBackend.defaultStrangerThinkTime == 1.6)
         #expect(LocalBackend.defaultEnterDelay == .milliseconds(600))
+        #expect(LocalBackend.defaultBotWindow == 25)
     }
 
     /// Mirrors TestFullPoemHappyPath (server/internal/gateway/gateway_test.go), pairing step.
     @Test func enterPairsImmediatelyWithAStranger() async throws {
         let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero)
 
-        let entered = try await backend.enter(pushToken: nil)
+        let entered = try await backend.enter(pushToken: nil, allowBot: false)
         #expect(entered.state == "matched")
         #expect(entered.participantToken == "local")
         #expect(entered.waitId == nil)
@@ -48,7 +49,7 @@ struct LocalBackendTests {
     /// A started, paired mock whose first turn is yours.
     private static func pairedBackend() async throws -> LocalBackend {
         let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero)
-        _ = try await backend.enter(pushToken: nil)
+        _ = try await backend.enter(pushToken: nil, allowBot: false)
         return backend
     }
 
@@ -170,7 +171,7 @@ struct LocalBackendTests {
     /// same three lines to a complete poem.
     @Test func roundRobinIsABA() async throws {
         let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero)
-        let first = try #require(try await backend.enter(pushToken: nil).session)
+        let first = try #require(try await backend.enter(pushToken: nil, allowBot: false).session)
         #expect(first.currentLine == 0)
         #expect(first.currentAuthor == 0)
 
@@ -196,7 +197,7 @@ struct LocalBackendTests {
     /// proves the hold without waiting on the wall clock.
     @Test func strangerHoldsThePoemUntilThinkTimePasses() async throws {
         let backend = LocalBackend(strangerThinkTime: 3600, enterDelay: .zero)
-        _ = try await backend.enter(pushToken: nil)
+        _ = try await backend.enter(pushToken: nil, allowBot: false)
         _ = try await Self.submit(backend, line: 0, "an old silent pond")
 
         let view = try await backend.getSession(id: "local-poem", token: "local")
@@ -212,7 +213,7 @@ struct LocalBackendTests {
     /// current view. AppModel refetches on those errors anyway, so it cannot tell (D-11, DRFT-01).
     @Test func wrongLineOrOutOfTurnIsIgnored() async throws {
         let backend = LocalBackend(strangerThinkTime: 3600, enterDelay: .zero)
-        _ = try await backend.enter(pushToken: nil)
+        _ = try await backend.enter(pushToken: nil, allowBot: false)
 
         let wrongLine = try await Self.submit(backend, line: 1, "wrong line")
         #expect(wrongLine.lines.isEmpty)
@@ -233,7 +234,7 @@ struct LocalBackendTests {
     /// mints a fresh key per call, so AppModel cannot see the difference (D-11, DRFT-01).
     @Test func resubmitDoesNotDuplicate() async throws {
         let backend = LocalBackend(strangerThinkTime: 3600, enterDelay: .zero)
-        _ = try await backend.enter(pushToken: nil)
+        _ = try await backend.enter(pushToken: nil, allowBot: false)
 
         _ = try await backend.submitLine(id: "local-poem", token: "local", line: 0, text: "first words here", idemKey: "dupe")
         _ = try await backend.submitLine(id: "local-poem", token: "local", line: 0, text: "different text", idemKey: "dupe")
@@ -247,7 +248,7 @@ struct LocalBackendTests {
     /// and writes report gone. The poem's lines are erased with it.
     @Test func leaveDissolvesAndErasesThePoem() async throws {
         let backend = LocalBackend(strangerThinkTime: 3600, enterDelay: .zero)
-        _ = try await backend.enter(pushToken: nil)
+        _ = try await backend.enter(pushToken: nil, allowBot: false)
         _ = try await Self.submit(backend, line: 0, "an old silent pond")
 
         await backend.leave(id: "local-poem", token: "local")
@@ -264,7 +265,7 @@ struct LocalBackendTests {
     /// step: once a finished poem is dismissed, a fetch is gone.
     @Test func dismissAfterCompletionDissolves() async throws {
         let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero)
-        _ = try await backend.enter(pushToken: nil)
+        _ = try await backend.enter(pushToken: nil, allowBot: false)
         _ = try await Self.submit(backend, line: 0, "an old silent pond")
         _ = try await backend.getSession(id: "local-poem", token: "local")
         let done = try await Self.submit(backend, line: 2, "splash silence again")
@@ -281,14 +282,65 @@ struct LocalBackendTests {
     /// step: a new encounter after teardown starts a fresh poem with nothing left over.
     @Test func enterAfterTeardownStartsAFreshPoem() async throws {
         let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero)
-        _ = try await backend.enter(pushToken: nil)
+        _ = try await backend.enter(pushToken: nil, allowBot: false)
         _ = try await Self.submit(backend, line: 0, "an old silent pond")
         await backend.dismiss(id: "local-poem", token: "local")
 
-        let fresh = try #require(try await backend.enter(pushToken: nil).session)
+        let fresh = try #require(try await backend.enter(pushToken: nil, allowBot: false).session)
         #expect(fresh.status == "active")
         #expect(fresh.currentLine == 0)
         #expect(fresh.lines.isEmpty)
         #expect(fresh.yourTurn)
+    }
+
+    // MARK: - The opt-in robot poet (Phase 5)
+
+    /// Mirrors TestBotNeverPairsWithoutOptIn (server/internal/gateway/bot_test.go): without the
+    /// opt-in the mock matches the simulated stranger at once, however short the bot window,
+    /// and no view ever discloses a robot poet.
+    @Test func notOptedInNeverMeetsTheRobotPoet() async throws {
+        let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero, botWindow: 0)
+
+        let entered = try await backend.enter(pushToken: nil, allowBot: false)
+        #expect(entered.state == "matched")
+        let session = try #require(entered.session)
+        #expect(session.partnerIsBot == false)
+
+        let waiting = try await backend.waiting(token: "local")
+        #expect(waiting.state == "matched")
+        #expect(waiting.session?.partnerIsBot == false)
+    }
+
+    /// Mirrors TestBotFallbackTracer (server/internal/gateway/bot_test.go): an opted-in enter
+    /// answers waiting, and the wait ends with the robot poet once the window has passed.
+    /// The window is 0 here so nothing waits on the wall clock.
+    @Test func optedInWaitsThenMeetsTheRobotPoet() async throws {
+        let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero, botWindow: 0)
+
+        let entered = try await backend.enter(pushToken: nil, allowBot: true)
+        #expect(entered.state == "waiting")
+        #expect(entered.waitId != nil)
+        #expect(entered.session == nil)
+
+        let waiting = try await backend.waiting(token: "local")
+        #expect(waiting.state == "matched")
+        let session = try #require(waiting.session)
+        #expect(session.partnerIsBot == true)
+        #expect(session.yourTurn)
+        #expect(session.lines.isEmpty)
+        #expect(session.status == "active")
+    }
+
+    /// Mirrors TestBotFallbackTracer (server/internal/gateway/bot_test.go), its "one
+    /// millisecond earlier still waits" half: inside the window every poll answers waiting.
+    @Test func optedInStillWaitingInsideTheWindow() async throws {
+        let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero, botWindow: 3600)
+        _ = try await backend.enter(pushToken: nil, allowBot: true)
+
+        for _ in 0..<2 {
+            let waiting = try await backend.waiting(token: "local")
+            #expect(waiting.state == "waiting")
+            #expect(waiting.session == nil)
+        }
     }
 }

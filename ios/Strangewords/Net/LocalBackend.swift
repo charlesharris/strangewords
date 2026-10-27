@@ -22,8 +22,13 @@ actor LocalBackend: Backend {
     /// A breath at the threshold before the match lands. [TUNABLE]
     static let defaultEnterDelay: Duration = .milliseconds(600)
 
+    /// How long an opted-in user waits before the robot poet arrives. Mirrors
+    /// config.BotWindow (SW_BOT_WAIT_SECONDS) on the server. [TUNABLE]
+    static let defaultBotWindow: TimeInterval = 25
+
     private let strangerThinkTime: TimeInterval
     private let enterDelay: Duration
+    private let botWindow: TimeInterval
 
     private var lines: [String] = []
     private var currentLine = 0
@@ -42,9 +47,12 @@ actor LocalBackend: Backend {
 
     /// Defaults preserve the pacing the app ships with; tests pass zero so
     /// nothing waits on the wall clock (Phase 2 D-02).
-    init(strangerThinkTime: TimeInterval = LocalBackend.defaultStrangerThinkTime, enterDelay: Duration = LocalBackend.defaultEnterDelay) {
+    init(strangerThinkTime: TimeInterval = LocalBackend.defaultStrangerThinkTime,
+         enterDelay: Duration = LocalBackend.defaultEnterDelay,
+         botWindow: TimeInterval = LocalBackend.defaultBotWindow) {
         self.strangerThinkTime = strangerThinkTime
         self.enterDelay = enterDelay
+        self.botWindow = botWindow
     }
 
     // Round-robin over two participants from start index 0.
@@ -68,7 +76,7 @@ actor LocalBackend: Backend {
 
     // MARK: - Backend
 
-    func enter(pushToken: String?) async throws -> EnterResponse {
+    func enter(pushToken: String?, allowBot: Bool) async throws -> EnterResponse {
         // A fresh poem each time you cross the threshold.
         lines = []
         currentLine = 0

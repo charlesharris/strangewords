@@ -105,7 +105,7 @@ final class AppModel {
         phase = .connecting
         actionTask = Task {
             do {
-                let r = try await api.enter(pushToken: nil)
+                let r = try await api.enter(pushToken: nil, allowBot: false)
                 guard !isStale(e) else { return }
                 if let t = r.participantToken { tokenStore.token = t }
                 handleEnter(r, epoch: e)

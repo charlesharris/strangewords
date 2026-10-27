@@ -531,4 +531,57 @@ struct AppModelTests {
 
         await finish(model, rig.fake, rig.cleanup)
     }
+
+    // MARK: - The robot-poet opt-in (Phase 5)
+
+    /// Strict default OFF (D-01): a fresh install sends allowBot false, and nothing
+    /// is written to the preference store by simply beginning.
+    @Test func beginSendsHumansOnlyByDefault() async throws {
+        let rig = Rig()
+        let model = rig.model
+        #expect(model.allowBot == false)
+
+        model.begin()
+        let enter = try await rig.arrivals.next()
+        #expect(enter.kind == .enter)
+        #expect(enter.allowBot == false)
+        enter.resolve(EnterResponse(participantToken: "tok", state: "matched", session: haikuView(), waitId: nil))
+        await model.actionTask?.value
+
+        #expect(rig.defaults.object(forKey: SettingsStore.allowBotKey) == nil)
+
+        await finish(model, rig.fake, rig.cleanup)
+    }
+
+    /// The opt-in crosses the wire and persists (D-01, D-02): the toggle writes the
+    /// suite, begin() sends it, a bot-disclosing view lands in .composing, and the
+    /// choice survives leave, reset and a brand-new model over the same defaults.
+    @Test func optInTravelsAndPersists() async throws {
+        let rig = Rig()
+        let model = rig.model
+
+        model.allowBot = true
+        #expect(rig.defaults.bool(forKey: SettingsStore.allowBotKey) == true)
+
+        model.begin()
+        let enter = try await rig.arrivals.next()
+        #expect(enter.allowBot == true)
+        let botView = haikuView(partnerIsBot: true)
+        enter.resolve(EnterResponse(participantToken: "tok", state: "matched", session: botView, waitId: nil))
+        await model.actionTask?.value
+
+        #expect(model.phase == .composing(botView))
+        if case .composing(let s) = model.phase { #expect(s.partnerIsBot) }
+
+        model.leave()
+        await model.actionTask?.value
+        model.reset()
+        #expect(model.allowBot == true)
+        #expect(rig.identityIsClear)
+
+        let reread = makeModel(backend: FakeBackend(), defaults: rig.defaults)
+        #expect(reread.allowBot == true)
+
+        await finish(model, rig.fake, rig.cleanup)
+    }
 }

@@ -53,9 +53,10 @@ actor APIClient: Backend {
         return URLSession(configuration: cfg)
     }
 
-    func enter(pushToken: String?) async throws -> EnterResponse {
+    func enter(pushToken: String?, allowBot: Bool) async throws -> EnterResponse {
         var body: [String: Any] = [:]
         if let pushToken { body["pushToken"] = pushToken }
+        body["allowBot"] = allowBot
         let (data, status) = try await send("POST", "/v1/enter", token: nil, json: body)
         guard status == 200 else { throw mapError(status, data) }
         return try decode(EnterResponse.self, data)
