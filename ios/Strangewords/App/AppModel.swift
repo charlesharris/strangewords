@@ -43,6 +43,13 @@ final class AppModel {
     /// nil for every other ending. Read by `DissolvedView`.
     private(set) var keepsake: CoinedName?
 
+    /// The user's opt-in to write with the robot poet when no stranger arrives
+    /// (Phase 5 D-01, D-02). Default OFF; writes through to `SettingsStore`.
+    /// Survives `dissolve()` and `reset()`: it is a preference, not identity.
+    var allowBot: Bool {
+        didSet { settings.allowBot = allowBot }
+    }
+
     /// How often the poll loops ask the backend for news.
     // nonisolated: referenced from the nonisolated init's default argument; a
     // Duration is immutable/Sendable, so this is safe and keeps Swift 6 happy.
@@ -50,6 +57,7 @@ final class AppModel {
 
     private let api: any Backend
     private let tokenStore: TokenStore
+    private let settings: SettingsStore
     let pollInterval: Duration
     @ObservationIgnored private(set) var pollTask: Task<Void, Never>?
     /// The in-flight action task (begin, resume, submit, release, leave). It gives
@@ -62,12 +70,16 @@ final class AppModel {
 
     /// The default backend is the real one, unless `SW_LOCAL_MOCK=1` selects the
     /// on-device `LocalBackend` (see `./run.sh --mock`). Tests/previews can inject.
-    /// `tokenStore` (identity container) and `pollInterval` (poll cadence) are
-    /// defaulted seams: production keeps `UserDefaults.standard` and 3 seconds.
+    /// `tokenStore` (identity container), `settings` (device preferences) and
+    /// `pollInterval` (poll cadence) are defaulted seams: production keeps
+    /// `UserDefaults.standard` and 3 seconds.
     init(backend: (any Backend)? = nil,
          tokenStore: TokenStore = TokenStore(),
+         settings: SettingsStore = SettingsStore(),
          pollInterval: Duration = AppModel.defaultPollInterval) {
         self.tokenStore = tokenStore
+        self.settings = settings
+        self.allowBot = settings.allowBot
         self.pollInterval = pollInterval
         if let backend {
             self.api = backend
