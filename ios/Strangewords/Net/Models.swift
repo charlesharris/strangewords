@@ -12,6 +12,7 @@ struct SessionView: Codable, Equatable {
     let currentAuthor: Int
     let yourTurn: Bool
     let lines: [String]
+    var partnerIsBot: Bool = false
 
     var isActive: Bool { status == "active" }
     var isComplete: Bool { status == "complete" }

@@ -83,4 +83,43 @@ struct SeamDefaultsTests {
         #expect(configuration.timeoutIntervalForRequest == 15)
         #expect(configuration.httpCookieStorage !== HTTPCookieStorage.shared)
     }
+
+    // MARK: - SettingsStore (Phase 5 D-01, D-02)
+
+    /// The preference is a device setting, not identity: it must sit outside the
+    /// `sw.` namespace that HostIsolationTests polices and TokenStore owns.
+    @Test func settingsStoreKeyIsOutsideSessionNamespace() {
+        #expect(SettingsStore.allowBotKey == "pref.allowBot")
+        #expect(!SettingsStore.allowBotKey.hasPrefix("sw."))
+    }
+
+    /// Production keeps the single shared container. Reads `.defaults` only.
+    @Test func settingsStoreDefaultsToStandard() {
+        #expect(SettingsStore().defaults === UserDefaults.standard)
+    }
+
+    /// Strict default OFF, round trip, suite isolation, and survival of a token clear.
+    @Test func settingsStoreIsolatesAndSurvivesTokenClear() {
+        let (defaultsA, cleanupA) = makeIsolatedDefaults()
+        let (defaultsB, cleanupB) = makeIsolatedDefaults()
+        defer { cleanupA(); cleanupB() }
+        let a = SettingsStore(defaults: defaultsA)
+        let b = SettingsStore(defaults: defaultsB)
+
+        // An absent key reads false: nobody is opted in until they say so.
+        #expect(a.allowBot == false)
+
+        a.allowBot = true
+        #expect(a.allowBot == true)
+        #expect(defaultsA.bool(forKey: SettingsStore.allowBotKey) == true)
+        #expect(b.allowBot == false)
+
+        // Dissolution clears identity, never the preference.
+        let tokens = TokenStore(defaults: defaultsA)
+        tokens.token = "tok"
+        tokens.sessionId = "sess"
+        tokens.clear()
+        #expect(tokens.token == nil)
+        #expect(a.allowBot == true)
+    }
 }
