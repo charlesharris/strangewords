@@ -12,7 +12,7 @@ struct ThresholdView: View {
         VStack(spacing: 40) {
             Spacer()
             VStack(spacing: 16) {
-                Text("Stranger Words")
+                Text("Strange Words")
                     .font(Theme.display(34))
                     .foregroundStyle(palette.ink)
                     .multilineTextAlignment(.center)

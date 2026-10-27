@@ -12,7 +12,7 @@ so the backend can be re-pointed via DNS without an App Store update.
 > future landing page. The Fly app is `strangewords` (hence
 > `strangewords.fly.dev`). The domain spelling now matches the code-internal
 > `strangewords` identifiers (Go module, Xcode target). The user-facing display
-> name stays "Stranger Words". The **iOS bundle id is `app.strangewords`**
+> name stays "Strange Words". The **iOS bundle id is `app.strangewords`**
 > (reverse-DNS of the domain), set before the first App Store upload because a
 > bundle id cannot change after that. App Attest binds to
 > `2M6QRD8T3A.app.strangewords`.

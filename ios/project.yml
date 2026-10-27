@@ -28,7 +28,7 @@ targets:
     info:
       path: Strangewords/Info.plist
       properties:
-        CFBundleDisplayName: Stranger Words
+        CFBundleDisplayName: Strange Words
         # The app's only encryption is the OS-provided HTTPS via URLSession, which
         # is exempt from export documentation. Declaring it here skips App Store
         # Connect's per-build encryption questionnaire. Revisit if the app ever

@@ -2,9 +2,9 @@
 
 ## Project
 
-**Stranger Words**
+**Strange Words**
 
-An anonymous, ephemeral iOS app ("Stranger Words") for writing a 3-line poem with a stranger, then letting it go. A SwiftUI client (iOS 17+) drives a phase state machine against a Go backend (live on Fly.io, Redis-backed, all state TTL-bounded); no accounts, no history — the only durable keepsake is a whimsical name the poem coins for itself on-device.
+An anonymous, ephemeral iOS app ("Strange Words") for writing a 3-line poem with a stranger, then letting it go. A SwiftUI client (iOS 17+) drives a phase state machine against a Go backend (live on Fly.io, Redis-backed, all state TTL-bounded); no accounts, no history — the only durable keepsake is a whimsical name the poem coins for itself on-device.
 
 The current milestone is not a new feature: it is **verifying the current state under GSD** — exercising everything automated, closing the iOS automated-test gap, fixing what breaks, and capturing the result as a validated baseline that future milestones (push, safety, TestFlight) build on.
 
@@ -37,7 +37,7 @@ The current milestone is not a new feature: it is **verifying the current state 
 - Static binary (`CGO_ENABLED=0`, `-trimpath -ldflags="-s -w"`) run in `alpine:3.20` as non-root user `app` (uid 10001)
 - Runtime memory tuned via `GOMEMLIMIT = "220MiB"` in `server/fly.toml`; `go.uber.org/automaxprocs` aligns GOMAXPROCS to the cgroup CPU quota
 - iOS 17.0 minimum deployment target (`ios/project.yml`), iPhone and iPad (`TARGETED_DEVICE_FAMILY: "1,2"`), though orientation is portrait-only in `Info.plist` settings
-- Bundle identifier `app.strangewords`, team `2M6QRD8T3A`, display name "Stranger Words", marketing version 0.1.0 (build 1)
+- Bundle identifier `app.strangewords`, team `2M6QRD8T3A`, display name "Strange Words", marketing version 0.1.0 (build 1)
 - Go modules - `server/go.mod`, lockfile `server/go.sum` present
 - Swift Package Manager - not used; the iOS app has no third-party dependencies (per `docs/STATUS.md`)
 - XcodeGen - generates `ios/Strangewords.xcodeproj` from `ios/project.yml`; the generated project and `Info.plist` are gitignored

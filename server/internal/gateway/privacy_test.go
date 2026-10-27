@@ -48,7 +48,7 @@ func TestPrivacyPage(t *testing.T) {
 
 	lower := strings.ToLower(string(body))
 	for _, want := range []string{
-		"stranger words privacy policy",
+		"strange words privacy policy",
 		"privacy@strangewords.app",
 		`datetime="2026-10-26"`,
 		"october 26, 2026",

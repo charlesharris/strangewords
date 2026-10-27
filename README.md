@@ -1,4 +1,4 @@
-# Stranger Words
+# Strange Words
 
 An anonymous, ephemeral iOS app for writing a tiny poem with someone you'll
 never meet, then letting it go. (Repo, Go module, and Xcode target are named
