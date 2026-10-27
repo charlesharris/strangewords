@@ -96,7 +96,8 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+- [2026-10-27] [api] Abandoned waiters linger in the queue and dead-pair with the next arriver (OBS-1) — [todo file](.planning/todos/pending/2026-10-27-abandoned-waiters-dead-pair-with-next-arriver.md)
+- [2026-10-27] [ui] Add a leave affordance to Compose so a stuck session has an escape — [todo file](.planning/todos/pending/2026-10-27-add-leave-affordance-to-compose.md)
 
 ### Blockers/Concerns
 
