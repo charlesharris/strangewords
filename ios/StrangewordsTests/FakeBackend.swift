@@ -5,8 +5,8 @@ import Testing
 /// A gated `Backend` test double (Phase 2 D-05). Every `enter`, `waiting`,
 /// `getSession` and `submitLine` call is recorded, then parked on a continuation
 /// until the test resolves or fails it, so the test owns exactly when each
-/// response lands. `leave` and `dismiss` are recorded and return at once, since
-/// `AppModel` fires them and nothing waits on their result.
+/// response lands. `leave`, `leaveWait` and `dismiss` are recorded and return at
+/// once, since `AppModel` fires them and nothing waits on their result.
 ///
 /// Parking every poll is also what keeps `pollInterval: .zero` honest (D-06):
 /// the poll loops have no pacing of their own, so a fake that answered at once
@@ -18,7 +18,7 @@ import Testing
 /// plan 02-02's stale-writer tests reproduce.
 actor FakeBackend: Backend {
     enum Kind: Equatable, Sendable {
-        case enter, waiting, getSession, submitLine, leave, dismiss
+        case enter, waiting, getSession, submitLine, leave, leaveWait, dismiss
     }
 
     /// One parked call. Resolve or fail it exactly once; a second attempt records
@@ -90,6 +90,7 @@ actor FakeBackend: Backend {
 
     private let sink: AsyncStream<Pending>.Continuation
     private var calls: [Kind] = []
+    private var leaveWaitTokens: [String] = []
     private var parked: [Pending] = []
     private var drained = false
 
@@ -125,11 +126,19 @@ actor FakeBackend: Backend {
         calls.append(.leave)
     }
 
+    func leaveWait(token: String) async {
+        calls.append(.leaveWait)
+        leaveWaitTokens.append(token)
+    }
+
     func dismiss(id: String, token: String) async {
         calls.append(.dismiss)
     }
 
     // MARK: - Test surface
+
+    /// Tokens carried by `leaveWait` calls, in order.
+    func recordedLeaveWaitTokens() -> [String] { leaveWaitTokens }
 
     /// Call kinds in the order `AppModel` made them.
     func recordedCalls() -> [Kind] { calls }

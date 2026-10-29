@@ -343,4 +343,39 @@ struct LocalBackendTests {
             #expect(waiting.session == nil)
         }
     }
+
+    // MARK: - Stepping back out (quick 261029-jhu)
+
+    /// Mirrors TestWaitLeaveTracer (server/internal/gateway/wait_test.go): a waiter who
+    /// steps back out is gone (410), and a fresh enter is a fresh encounter.
+    @Test func leaveWaitEndsTheWait() async throws {
+        let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero, botWindow: 3600)
+        let entered = try await backend.enter(pushToken: nil, allowBot: true)
+        #expect(entered.state == "waiting")
+
+        await backend.leaveWait(token: "local")
+
+        await #expect(throws: APIError.gone) {
+            try await backend.waiting(token: "local")
+        }
+        let fresh = try await backend.enter(pushToken: nil, allowBot: false)
+        #expect(fresh.state == "matched")
+        let session = try #require(fresh.session)
+        #expect(session.status == "active")
+        #expect(session.lines.isEmpty)
+    }
+
+    /// Mirrors TestWaitLeaveAfterMatchDissolves (server/internal/gateway/wait_test.go): a
+    /// leaveWait after the match dissolves the poem.
+    @Test func leaveWaitAfterMatchDissolves() async throws {
+        let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero)
+        let entered = try await backend.enter(pushToken: nil, allowBot: false)
+        #expect(entered.state == "matched")
+
+        await backend.leaveWait(token: "local")
+
+        await #expect(throws: APIError.gone) {
+            try await backend.getSession(id: "local-poem", token: "local")
+        }
+    }
 }

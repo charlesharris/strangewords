@@ -459,26 +459,78 @@ struct AppModelTests {
 
         let calls = await rig.fake.recordedCalls()
         #expect(calls.contains(.leave))
+        #expect(!calls.contains(.leaveWait))
         #expect(model.phase == .dissolved(.ended))
         #expect(rig.identityIsClear)
 
         await finish(model, rig.fake, rig.cleanup)
     }
 
-    /// Pins today's behavior: AppModel only tells the backend when a session id
-    /// exists, so a waiter who steps back out is never reported to the server.
-    /// Observation carried to the SUMMARY (OBS-1); deliberately not changed here.
-    @Test func leaveWhileWaitingSendsNoLeaveCall() async throws {
+    /// OBS-1 fixed by quick 261029-jhu; a pre-match exit is reported through leaveWait.
+    @Test func leaveWhileWaitingSendsLeaveWait() async throws {
         let rig = Rig()
         let model = rig.model
 
         _ = try await rig.beginWaiting()
         model.leave()
+        await model.actionTask?.value
 
         let calls = await rig.fake.recordedCalls()
+        #expect(calls.filter { $0 == .leaveWait }.count == 1)
         #expect(!calls.contains(.leave))
+        #expect(await rig.fake.recordedLeaveWaitTokens() == ["tok"])
         #expect(model.phase == .dissolved(.ended))
         #expect(rig.identityIsClear)
+
+        await finish(model, rig.fake, rig.cleanup)
+    }
+
+    @Test func leaveWhileWaitingTwiceSendsOneLeaveWait() async throws {
+        let rig = Rig()
+        let model = rig.model
+
+        _ = try await rig.beginWaiting()
+        model.leave()
+        model.leave()
+        await model.actionTask?.value
+
+        let calls = await rig.fake.recordedCalls()
+        #expect(calls.filter { $0 == .leaveWait }.count == 1)
+        #expect(model.phase == .dissolved(.ended))
+        #expect(rig.identityIsClear)
+
+        await finish(model, rig.fake, rig.cleanup)
+    }
+
+    @Test func leaveAfterResumeIntoWaitingSendsLeaveWait() async throws {
+        let rig = Rig()
+        let model = rig.model
+        rig.seed(token: "tok", sessionId: nil)
+
+        model.resume()
+        let ask = try await rig.arrivals.next()
+        ask.resolve(WaitingResponse(state: "waiting", session: nil))
+        await model.actionTask?.value
+        _ = try await rig.arrivals.next() // the next poll parks
+
+        model.leave()
+        await model.actionTask?.value
+
+        #expect(await rig.fake.recordedLeaveWaitTokens() == ["tok"])
+        #expect(!(await rig.fake.recordedCalls()).contains(.leave))
+        #expect(rig.identityIsClear)
+
+        await finish(model, rig.fake, rig.cleanup)
+    }
+
+    @Test func leaveAtThresholdSendsNothing() async throws {
+        let rig = Rig()
+        let model = rig.model
+
+        model.leave()
+        await model.actionTask?.value
+
+        #expect(await rig.fake.recordedCalls().isEmpty)
 
         await finish(model, rig.fake, rig.cleanup)
     }

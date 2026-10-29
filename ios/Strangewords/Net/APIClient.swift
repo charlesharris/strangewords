@@ -85,6 +85,10 @@ actor APIClient: Backend {
         _ = try? await send("POST", "/v1/session/\(id)/leave", token: token, json: [:])
     }
 
+    func leaveWait(token: String) async {
+        _ = try? await send("POST", "/v1/wait/leave", token: token, json: [:])
+    }
+
     func dismiss(id: String, token: String) async {
         _ = try? await send("POST", "/v1/session/\(id)/dismiss", token: token, json: [:])
     }

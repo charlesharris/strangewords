@@ -9,8 +9,9 @@ import Foundation
 /// can't tell the difference: haiku form (5-7-5), round-robin authorship from a
 /// start offset of 0, so the turns fall out as you → stranger → you.
 ///
-/// Like the server, `leave` and `dismiss` dissolve the poem: its lines are erased
-/// and later reads and writes report `APIError.gone` until the next `enter`.
+/// Like the server, `leave`, `leaveWait` and `dismiss` dissolve the poem: its lines
+/// are erased and later reads and writes report `APIError.gone` until the next
+/// `enter`.
 ///
 /// An opted-in `enter` (`allowBot: true`) mirrors the server's robot-poet arc: it
 /// answers waiting, keeps answering waiting for `botWindow`, then matches with a
@@ -21,6 +22,9 @@ import Foundation
 /// DRIFT: an opted-in mock user always waits the full window, because the mock has
 /// no human pool to race; the server races an atomic LREM claim against LPOP so a
 /// human arriving first wins.
+/// DRIFT: the server also drops waiters who stop polling (`StaleWaiterAfter`) when an
+/// arriver pops them; the mock has no queue or other arrivers, so there is nothing
+/// to drop.
 /// DRIFT: the mock starts with your turn, where the server picks `StartIndex` at
 /// random, so the robot poet may write first there.
 actor LocalBackend: Backend {
@@ -112,6 +116,7 @@ actor LocalBackend: Backend {
     }
 
     func waiting(token: String) async throws -> WaitingResponse {
+        if status == "dissolved" { throw APIError.gone } // the server's 410 once the token ref is gone
         if let since = waitingSince {
             guard Date().timeIntervalSince(since) >= botWindow else {
                 return WaitingResponse(state: "waiting", session: nil)
@@ -143,6 +148,7 @@ actor LocalBackend: Backend {
     }
 
     func leave(id: String, token: String) async { dissolve() }
+    func leaveWait(token: String) async { dissolve() }
     func dismiss(id: String, token: String) async { dissolve() }
 
     /// Dissolution erases the poem, as on the server (TestLeaveDissolves).
