@@ -197,9 +197,17 @@ final class AppModel {
         dissolve(.completedAndGone)
     }
 
+    /// Step out. A mid-session exit reports `leave`; a pre-match exit (a token but
+    /// no session id yet) reports `leaveWait`, so the server never pairs the next
+    /// arriver with a departed waiter (OBS-1). The token is captured before
+    /// `dissolve` clears identity.
     func leave() {
-        if let id = tokenStore.sessionId, let token = tokenStore.token {
-            actionTask = Task { await api.leave(id: id, token: token) }
+        if let token = tokenStore.token {
+            if let id = tokenStore.sessionId {
+                actionTask = Task { await api.leave(id: id, token: token) }
+            } else {
+                actionTask = Task { await api.leaveWait(token: token) }
+            }
         }
         dissolve(.ended)
     }

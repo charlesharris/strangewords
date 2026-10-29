@@ -59,6 +59,18 @@ type WaitEntry struct {
 	// wait. It lives only on the TTL-bound wait entry (WaitTTL) and is deleted
 	// when the waiter is claimed.
 	AllowBot bool `json:"allowBot,omitempty"`
+	// LastPolledAt is unix ms of the waiter's latest poll, zero until the first
+	// poll. It is liveness only, never an identifier, and lives only on the
+	// TTL-bound wait entry; clients never see it.
+	LastPolledAt int64 `json:"lastPolledAt,omitempty"`
+}
+
+// LastSeenAt is the later of the waiter's enqueue time and its latest poll.
+func (w *WaitEntry) LastSeenAt() int64 {
+	if w.LastPolledAt > w.EnqueuedAt {
+		return w.LastPolledAt
+	}
+	return w.EnqueuedAt
 }
 
 type Store struct {
@@ -179,13 +191,78 @@ func (s *Store) GetWait(ctx context.Context, id string) (*WaitEntry, error) {
 	return &w, nil
 }
 
-func (s *Store) SaveWait(ctx context.Context, w *WaitEntry) error {
+// UpdateWait rewrites an EXISTING wait record with SET XX KEEPTTL and reports
+// whether it did. The write is conditional because a leave, a stale drop or a
+// dissolve may already have deleted the record, and recreating it would
+// resurrect a departed waiter and break ephemerality. KEEPTTL keeps the original
+// WaitTTL bound (the 15 minutes privacy.html states): a poll never extends it.
+func (s *Store) UpdateWait(ctx context.Context, w *WaitEntry) (bool, error) {
 	b, _ := json.Marshal(w)
-	return s.rdb.Set(ctx, waitKey(w.ID), b, WaitTTL).Err()
+	return s.rdb.SetXX(ctx, waitKey(w.ID), b, redis.KeepTTL).Result() // false: XX and the key is gone
+}
+
+// DropWait deletes a waiter's wait record and token ref in one DEL. Only a
+// caller that already owns the waiter (it removed it from the queue by LPOP) may
+// use it; a leaving waiter goes through DropWaitIfUnbound instead.
+func (s *Store) DropWait(ctx context.Context, w *WaitEntry) error {
+	return s.rdb.Del(ctx, waitKey(w.ID), tokKey(w.Token)).Err()
+}
+
+// BindWaiter points a waiter's token ref at its session with SET XX. The token
+// ref is the waiter's ownership record: if the waiter left or was dropped the ref
+// is gone, XX refuses to recreate it, and false tells the caller to tear down the
+// session it just built. Pairs with DropWaitIfUnbound's WATCH compare-and-delete.
+func (s *Store) BindWaiter(ctx context.Context, token string, ref Ref, ttl time.Duration) (bool, error) {
+	b, _ := json.Marshal(ref)
+	return s.rdb.SetXX(ctx, tokKey(token), b, ttl).Result()
 }
 
 func (s *Store) DelWait(ctx context.Context, id string) error {
 	return s.rdb.Del(ctx, waitKey(id)).Err()
+}
+
+// DropWaitIfUnbound removes a waiter that is leaving, but only while its token
+// ref still points at that wait. The token ref is the waiter's ownership record:
+// a pairing (or a bot claim) binds it to a session with SET XX, and this delete
+// runs under WATCH on the same key, so exactly one side wins. If a pairing bound
+// the ref first, nothing is deleted (the partner's session must not lose a
+// participant silently) and the bound ref is returned so the caller can dissolve
+// that session. On a lost WATCH race the ref is re-read once; one attempt, no
+// retry loop. ErrNotFound means the ref is already gone (expired or dropped).
+func (s *Store) DropWaitIfUnbound(ctx context.Context, token, waitID string) (Ref, bool, error) {
+	var ref Ref
+	dropped := false
+	err := s.rdb.Watch(ctx, func(tx *redis.Tx) error {
+		v, err := tx.Get(ctx, tokKey(token)).Bytes()
+		if errors.Is(err, redis.Nil) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(v, &ref); err != nil {
+			return err
+		}
+		if ref.Kind != KindWait || ref.RefID != waitID {
+			return nil
+		}
+		_, err = tx.TxPipelined(ctx, func(p redis.Pipeliner) error {
+			p.Del(ctx, tokKey(token), waitKey(waitID))
+			return nil
+		})
+		if err == nil {
+			dropped = true
+		}
+		return err
+	}, tokKey(token))
+	if errors.Is(err, redis.TxFailedErr) {
+		cur, gerr := s.GetRef(ctx, token)
+		return cur, false, gerr
+	}
+	if err != nil {
+		return Ref{}, false, err
+	}
+	return ref, dropped, nil
 }
 
 // ---- sessions ----

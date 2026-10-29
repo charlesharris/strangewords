@@ -17,5 +17,11 @@ protocol Backend: Sendable {
     func getSession(id: String, token: String) async throws -> SessionView
     func submitLine(id: String, token: String, line: Int, text: String, idemKey: String) async throws -> SessionView
     func leave(id: String, token: String) async
+    /// Step out of the waiting queue before any match (the "step back out"
+    /// action). Fire-and-forget like `leave`. The server removes the queue entry,
+    /// wait record and token ref, or dissolves the session if a match landed
+    /// first. If the call never arrives, the server's liveness rule drops the
+    /// waiter within `StaleWaiterAfter`. An older server 404s it, which is ignored.
+    func leaveWait(token: String) async
     func dismiss(id: String, token: String) async
 }

@@ -29,6 +29,9 @@ var (
 	LinesSubmitted = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_lines_submitted_total", Help: "Poem lines accepted."})
 	PoemsCompleted = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_poems_completed_total", Help: "Poems that reached completion."})
 	Dissolved      = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_dissolved_total", Help: "Sessions torn down."})
+
+	WaitLeft            = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_wait_left_total", Help: "Waiters who stepped back out before seeing a match."})
+	StaleWaitersDropped = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_stale_waiters_dropped_total", Help: "Queued waiters dropped at pair time because they had stopped polling."})
 )
 
 // ---- hardening counters ----
