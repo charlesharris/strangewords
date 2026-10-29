@@ -167,6 +167,17 @@ func (s *Server) handleWaiting(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if wfe.MatchedSessionID == "" {
+			// Liveness: record this poll so an arriver can tell a live waiter from
+			// an abandoned one. EnqueuedAt is untouched because it anchors the bot
+			// window; the write is SET XX KEEPTTL, so it never recreates a deleted
+			// record or extends WaitTTL. If a pair raced this read, the overwrite
+			// of MatchedSessionID is benign: pair binds the token ref to the
+			// session before it writes MatchedSessionID, and this handler reads the
+			// ref first, so the next poll takes the session branch from the ref.
+			wfe.LastPolledAt = s.now().UnixMilli()
+			if _, err := s.st.UpdateWait(r.Context(), wfe); err != nil {
+				s.log.Warn("wait touch failed", "err", err)
+			}
 			// Human first (D-03): only a still-unmatched, opted-in waiter whose
 			// window has passed may claim itself for the robot poet. Losing the
 			// claim to a human arrival is not an error; the next poll finds the match.
@@ -188,7 +199,15 @@ func (s *Server) handleWaiting(w http.ResponseWriter, r *http.Request) {
 		// Matched: migrate the token ref to the session (waiter is index 0).
 		sessID = wfe.MatchedSessionID
 		idx = 0
-		_ = s.st.SetRef(r.Context(), token, store.Ref{Kind: store.KindSession, RefID: sessID, Idx: idx}, store.SessionTTL)
+		bound, err := s.st.BindWaiter(r.Context(), token, store.Ref{Kind: store.KindSession, RefID: sessID, Idx: idx}, store.SessionTTL)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		if !bound {
+			writeErr(w, http.StatusGone, "session_gone", "your wait has ended")
+			return
+		}
 	}
 
 	sess, err := s.loadSession(r.Context(), sessID)

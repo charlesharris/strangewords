@@ -542,7 +542,14 @@ func TestHumanVsBotRaceSingleSession(t *testing.T) {
 	for i := 0; i < 50; i++ {
 		b := newBotRig(t, nil)
 		a, _ := b.enterWith(t, map[string]any{"allowBot": true})
-		b.clock.Advance(b.cfg.BotWindow)
+		// A is a live, polling waiter, as a real client is. Without this poll the
+		// 25 s jump would look like an abandoned waiter (stale-waiter rule, quick
+		// 261029-jhu); the race under test stays human arrival versus bot claim.
+		b.clock.Advance(b.cfg.BotWindow - time.Millisecond)
+		if wr, raw := b.poll(t, a.ParticipantToken); wr.State != "waiting" {
+			t.Fatalf("iter %d: A should still wait 1ms before the window, got %s", i, raw)
+		}
+		b.clock.Advance(time.Millisecond)
 
 		var (
 			wg       sync.WaitGroup

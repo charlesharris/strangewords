@@ -198,12 +198,14 @@ All keys TTL-bounded. `sw:` prefix.
 | key                                   | type        | contents                                                                 | TTL |
 |---------------------------------------|-------------|--------------------------------------------------------------------------|-----|
 | `sw:queue:{bucket}`                   | list (FIFO) | waiting entry ids for a match bucket, oldest first                       | —   |
-| `sw:wait:{waitId}`                    | hash        | `token`, `pushToken`, `enqueuedAt`, `bucket`, `matchedSessionId?`        | 15m |
+| `sw:wait:{waitId}`                    | hash        | `token`, `pushToken`, `enqueuedAt`, `lastPolledAt?`, `bucket`, `matchedSessionId?` | 15m |
 | `sw:tok:{participantToken}`           | hash        | `kind`=wait\|session, `refId`=waitId\|sessionId, `side`=A\|B            | 15m / 90m |
 | `sw:sess:{sessionId}`                 | hash        | see fields below                                                         | 90m |
 | `sw:idem:{sessionId}:{idemKey}`       | string      | stored response hash, prevents duplicate submit                          | 10m |
 | `sw:rl:ip:{ip}`                       | string/int  | rate-limit counter (sliding window via token bucket)                     | 1m  |
 | `sw:rl:tok:{participantToken}`        | string/int  | per-token submit rate counter                                            | 1m  |
+
+An arriver drops a queued waiter whose last poll (or enqueue) is older than the liveness window (10 s, about 3x the 3 s poll), so abandoned waiters never dead-pair with the next arrival. `lastPolledAt` is liveness only and lives only on the TTL-bound wait entry; polls never extend its TTL.
 
 **Session hash fields.** Split so a continuation (Section 13) resets only the poem, not the encounter:
 
@@ -252,6 +254,9 @@ Response — enqueued:
 
 ### `GET /v1/waiting`
 Poll while waiting (foreground) or after a match-ready push. Returns `waiting` or, once paired, the `matched` payload above (the session is created by whoever arrived second; the waiter learns here).
+
+### `POST /v1/wait/leave`
+"Step back out" before any match. Bearer token only, no body. Removes the caller's queue entry, wait record and token ref, and answers `{"status":"left"}`. If a match landed before the call arrived, the session is dissolved instead (the partner sees `410`) and it answers `{"status":"dissolved"}`. `410 session_gone` when there is nothing to leave.
 
 ### `GET /v1/session/{id}`
 Fetch current session state (poll while it's the partner's turn; also the return-to-poem entry point). Updates this side's `lastSeen`. Returns the session view (same shape as `session` above, with `lines` populated and `yourTurn` computed for the caller).
