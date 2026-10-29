@@ -12,13 +12,13 @@ struct SciFiTheme: SceneTheme {
         case .morning:
             return Palette(
                 skyTop: Color(0x243A6E), skyBottom: Color(0xE8A06A),
-                ink: Color(0x14263F), secondary: Color(0x5E6E86),
+                ink: Color(0x14263F), secondary: Color(0x343C4A),
                 accent: Color(0x17B6C9), onAccent: Color(0xF4FBFF),
                 sun: Color(0xFFE3B0), far: Color(0x33405F), near: Color(0x1B2740), isDark: false, backsSkyText: true)
         case .afternoon:
             return Palette(
                 skyTop: Color(0x2E6FB0), skyBottom: Color(0xC2E6F4),
-                ink: Color(0x123040), secondary: Color(0x5C7A8C),
+                ink: Color(0x123040), secondary: Color(0x394B56),
                 accent: Color(0x0E9FB8), onAccent: Color(0xF7FCFF),
                 sun: Color(0xFFF4D8), far: Color(0x6E8FA8), near: Color(0x3C5C70), isDark: false, backsSkyText: true)
         case .night:

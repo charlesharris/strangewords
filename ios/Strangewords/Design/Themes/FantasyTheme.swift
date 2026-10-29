@@ -13,13 +13,13 @@ struct FantasyTheme: SceneTheme {
         case .morning:
             return Palette(
                 skyTop: Color(0x6E7FB0), skyBottom: Color(0xF0D9E6),
-                ink: Color(0x35264A), secondary: Color(0x7B6E92),
+                ink: Color(0x35264A), secondary: Color(0x453E52),
                 accent: Color(0xB07AD0), onAccent: Color(0xFDF6FF),
                 sun: Color(0xFFE9C0), far: Color(0x9A86B8), near: Color(0x6E5E8E), isDark: false)
         case .afternoon:
             return Palette(
                 skyTop: Color(0x8FA0D8), skyBottom: Color(0xEAE6F4),
-                ink: Color(0x3A2F52), secondary: Color(0x7E7596),
+                ink: Color(0x3A2F52), secondary: Color(0x4F495E),
                 accent: Color(0xA86FD0), onAccent: Color(0xFCF8FF),
                 sun: Color(0xFFF0CE), far: Color(0x9E8FC0), near: Color(0x6E5F94), isDark: false)
         case .night:

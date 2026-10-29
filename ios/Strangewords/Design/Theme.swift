@@ -48,14 +48,14 @@ enum TimeOfDay: String {
         case .morning:
             return Palette(
                 skyTop: Color(0xF7CDCB), skyBottom: Color(0xFCEFE6),
-                ink: Color(0x4E3B34), secondary: Color(0x927A70),
+                ink: Color(0x4E3B34), secondary: Color(0x6B5952),
                 accent: Color(0xE2848C), onAccent: Color(0xFFFFFF),
                 sun: Color(0xFFD9B0), far: Color(0xE7B7B2), near: Color(0xD49A92),
                 isDark: false)
         case .afternoon:
             return Palette(
                 skyTop: Color(0xEBCFCB), skyBottom: Color(0xFAEDE6),
-                ink: Color(0x4C4741), secondary: Color(0x8E837C),
+                ink: Color(0x4C4741), secondary: Color(0x635B57),
                 accent: Color(0xD98890), onAccent: Color(0xFFFFFF),
                 sun: Color(0xFFF1D8), far: Color(0xDCB1AC), near: Color(0xC79A91),
                 isDark: false)
