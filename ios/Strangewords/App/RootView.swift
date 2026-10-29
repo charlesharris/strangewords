@@ -13,12 +13,18 @@ struct RootView: View {
     /// Set once the dev toggle pins a time of day, so returning to foreground
     /// doesn't snap the preview back to the real local hour.
     @State private var todPinned = false
-    /// A dev-launch override of the scenery, seeded from `SW_FORCE_THEME` and cycled
-    /// by the dev chip. Never persisted, and nil in every normal launch.
-    @State private var devThemeID: String? = ProcessInfo.processInfo.environment["SW_FORCE_THEME"]
+    /// Dev launch only: `SW_FORCE_THEME` pins the scenery and wins over the user's
+    /// stored choice.
+    private static let forcedThemeID = ProcessInfo.processInfo.environment["SW_FORCE_THEME"]
+    /// The dev chip's scenery override. Session-only and never persisted: nil until
+    /// the chip is tapped. Persistence belongs to SettingsView → AppModel alone.
+    @State private var devThemeID: String?
 
-    /// The active theme: the dev override, else the user's stored scenery, else nature.
-    private var theme: any SceneTheme { Themes.with(id: devThemeID ?? model.themeID) }
+    /// The active theme: dev chip, then `SW_FORCE_THEME`, then the user's stored
+    /// scenery, then nature.
+    private var theme: any SceneTheme {
+        Themes.resolve(devOverride: devThemeID, forced: Self.forcedThemeID, preferred: model.themeID)
+    }
 
     var body: some View {
         let palette = theme.palette(tod)
@@ -49,9 +55,14 @@ struct RootView: View {
         .preferredColorScheme(palette.isDark ? .dark : .light)
         .animation(.easeInOut(duration: 0.6), value: model.phase)
         .animation(.easeInOut(duration: 0.6), value: tod)
+        .animation(.easeInOut(duration: 0.6), value: theme.id)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active, !todPinned { tod = TimeOfDay.now() }
         }
+        // A deliberate settings pick clears the chip's session override
+        // (SW_FORCE_THEME still wins), so a tester in a run.sh session who touched
+        // the chip sees the pick take effect.
+        .onChange(of: model.themeID) { _, _ in devThemeID = nil }
     }
 
     /// Dev-only chips (top-trailing): cycle the time of day and the theme, so the

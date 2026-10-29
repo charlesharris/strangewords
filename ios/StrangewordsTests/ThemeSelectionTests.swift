@@ -70,7 +70,8 @@ struct ThemeSelectionTests {
 
         let relaunched = makeModel(backend: FakeBackend(), defaults: defaults)
         #expect(relaunched.themeID == "fantasy")
-        #expect(Themes.with(id: relaunched.themeID).id == "fantasy")
+        // Exactly what RootView paints at a normal launch.
+        #expect(Themes.resolve(devOverride: nil, forced: nil, preferred: relaunched.themeID).id == "fantasy")
     }
 
     @MainActor
@@ -87,5 +88,59 @@ struct ThemeSelectionTests {
     @Test func sceneryCopyIsPinned() {
         #expect(SettingsView.themeTitle == "scenery")
         #expect(SettingsView.themeHelper == "the world your poem is written in. only you see it.")
+    }
+
+    // MARK: - Registry
+
+    @Test func registryIdsAndNamesArePinned() {
+        #expect(Themes.all.map(\.id) == ["nature", "sci-fi", "fantasy"])
+        #expect(Themes.all.map(\.name) == ["nature", "sci-fi", "fantasy"])
+        #expect(Themes.default.id == "nature")
+    }
+
+    // MARK: - Precedence: dev chip > SW_FORCE_THEME > stored choice > nature
+
+    @Test func resolveFallsBackToNatureWhenNothingValidIsChosen() {
+        #expect(Themes.resolve(devOverride: nil, forced: nil, preferred: nil).id == "nature")
+        #expect(Themes.resolve(devOverride: nil, forced: nil, preferred: "retired-scenery").id == "nature")
+        #expect(Themes.resolve(devOverride: "bogus", forced: "bogus", preferred: "bogus").id == "nature")
+    }
+
+    @Test func storedSceneryPaintsWhenNothingOverridesIt() {
+        for theme in Themes.all {
+            #expect(Themes.resolve(devOverride: nil, forced: nil, preferred: theme.id).id == theme.id,
+                    "stored \(theme.id) did not paint")
+        }
+    }
+
+    @Test func forcedSceneryBeatsTheStoredChoice() {
+        #expect(Themes.resolve(devOverride: nil, forced: "sci-fi", preferred: "fantasy").id == "sci-fi")
+        // An unknown forced id falls through to the stored choice.
+        #expect(Themes.resolve(devOverride: nil, forced: "bogus", preferred: "fantasy").id == "fantasy")
+    }
+
+    @Test func devCycleBeatsForcedAndStored() {
+        #expect(Themes.resolve(devOverride: "fantasy", forced: "sci-fi", preferred: "nature").id == "fantasy")
+        #expect(Themes.resolve(devOverride: "bogus", forced: "sci-fi", preferred: "nature").id == "sci-fi")
+    }
+
+    // MARK: - Voice
+
+    private func words(_ s: String) -> Set<String> {
+        Set(s.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init))
+    }
+
+    /// Every visible scenery string is lowercase, calm, and free of the cold
+    /// vocabulary the robot-poet copy avoids (Phase 5 T-05-13) plus the
+    /// engineering word "theme".
+    @Test func sceneryCopyKeepsTheVoice() {
+        let banned: Set<String> = ["bot", "ai", "assistant", "chatbot", "algorithm", "queue",
+                                   "searching", "matched", "theme"]
+        let visible = [SettingsView.themeTitle, SettingsView.themeHelper] + Themes.all.map(\.name)
+        for s in visible {
+            #expect(s == s.lowercased(), "not lowercase: \(s)")
+            #expect(!s.contains("!"), "exclamation in: \(s)")
+            #expect(words(s).isDisjoint(with: banned), "cold vocabulary in: \(s)")
+        }
     }
 }
