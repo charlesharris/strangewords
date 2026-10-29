@@ -38,6 +38,10 @@ struct ComposeView: View {
             }
 
             Spacer(minLength: 24)
+
+            // Bottom slot: the chip owns top-leading, the dev chips own top-trailing,
+            // and the app's exits ("step back out", "let it go") live at the bottom.
+            StepAway()
         }
         .onAppear {
             focused = session.yourTurn
