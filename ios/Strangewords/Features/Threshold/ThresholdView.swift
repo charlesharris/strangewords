@@ -24,6 +24,7 @@ struct ThresholdView: View {
                     .foregroundStyle(palette.secondary)
                     .multilineTextAlignment(.center)
             }
+            .skyTextBacking(palette)
             Spacer()
             Button(action: model.begin) {
                 Text("begin").font(Theme.poem(22))

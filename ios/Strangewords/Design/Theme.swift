@@ -82,6 +82,11 @@ struct Palette {
     let far: Color        // distant ridge silhouette
     let near: Color       // foreground hill silhouette
     let isDark: Bool
+    /// Whether sky copy (title, tagline, poem lines, waiting and keepsake text) sits on
+    /// the shared onAccent legibility backing in this palette. True only where
+    /// ContrastTests proves no text color can reach 4.5:1 over the sky and skyline.
+    /// [TUNABLE] as data: flip it per palette, and the test says whether the call was right.
+    var backsSkyText: Bool = false
 }
 
 // MARK: - Environment plumbing
@@ -138,6 +143,7 @@ struct PoemLine: View {
             .font(Theme.poem())
             .foregroundStyle(dim ? palette.secondary : palette.ink)
             .multilineTextAlignment(.center)
+            .skyTextBacking(palette)
             .frame(maxWidth: .infinity)
             .fixedSize(horizontal: false, vertical: true)
     }

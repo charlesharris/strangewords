@@ -131,6 +131,21 @@ struct ContrastTests {
         }
     }
 
+    // MARK: - 7. The sky backing is earned, not blanket
+
+    /// `backsSkyText` may be true only where no text color at all can reach 4.5:1 over
+    /// the unbacked sky and skyline (sci-fi morning and afternoon); everywhere else a
+    /// text-color fix is enough, and a blanket pill would be needless chrome.
+    @Test func skyBackingOnlyWhereNoTextColorCanPass() {
+        for cell in Self.cells {
+            let unbacked = Surface(id: "sky.probe", role: .ink, opacity: 1.0, size: .normal,
+                                   placement: .sky, depth: 0, backing: .none)
+            let best = Self.bestAnyGray(over: Self.backdrops(unbacked, cell))
+            #expect(cell.palette.backsSkyText == (best < 4.5),
+                    "\(cell.theme) \(cell.tod.rawValue): backsSkyText=\(cell.palette.backsSkyText) but best any-color ratio over the unbacked sky is \(Self.fmt(best))")
+        }
+    }
+
     // MARK: - 8. The printed matrix
 
     @Test func contrastMatrix() {
@@ -188,7 +203,13 @@ struct ContrastTests {
         case card
     }
 
-    enum Backing { case none, always }
+    enum Backing {
+        case none
+        /// Backed in every palette.
+        case always
+        /// Backed iff `Palette.backsSkyText`.
+        case skyFlag
+    }
 
     struct Surface {
         let id: String
@@ -207,15 +228,15 @@ struct ContrastTests {
     /// 23 surfaces, in the order the matrix prints them. Values are the styling the
     /// views render today.
     static let inventory: [Surface] = [
-        Surface(id: "threshold.title", role: .ink, opacity: 1.0, size: .large, placement: .sky, depth: 0, backing: .none),
-        Surface(id: "threshold.tagline", role: .secondary, opacity: 1.0, size: .normal, placement: .sky, depth: 0, backing: .none),
+        Surface(id: "threshold.title", role: .ink, opacity: 1.0, size: .large, placement: .sky, depth: 0, backing: .skyFlag),
+        Surface(id: "threshold.tagline", role: .secondary, opacity: 1.0, size: .normal, placement: .sky, depth: 0, backing: .skyFlag),
         Surface(id: "waiting.status", role: .secondary, opacity: 1.0, size: .normal, placement: .sky, depth: 0, backing: .none),
         Surface(id: "waiting.botLine", role: .secondary, opacity: 0.8, size: .normal, placement: .sky, depth: 0, backing: .none),
         Surface(id: "dissolved.keepsakeLead", role: .secondary, opacity: 1.0, size: .normal, placement: .sky, depth: 1.0, backing: .none),
         Surface(id: "dissolved.keepsakeName", role: .ink, opacity: 1.0, size: .large, placement: .sky, depth: 1.0, backing: .none),
         Surface(id: "dissolved.keepsakeKind", role: .secondary, opacity: 1.0, size: .normal, placement: .sky, depth: 1.0, backing: .none),
         Surface(id: "dissolved.farewell", role: .ink, opacity: 1.0, size: .normal, placement: .sky, depth: 1.0, backing: .none),
-        Surface(id: "poem.line", role: .ink, opacity: 1.0, size: .large, placement: .sky, depth: 0.70, backing: .none),
+        Surface(id: "poem.line", role: .ink, opacity: 1.0, size: .large, placement: .sky, depth: 0.70, backing: .skyFlag),
         Surface(id: "compose.draft", role: .ink, opacity: 1.0, size: .large, placement: .low, depth: 0.22, backing: .none),
         Surface(id: "compose.syllableHint", role: .secondary, opacity: 0.7, size: .normal, placement: .low, depth: 0.22, backing: .none),
         Surface(id: "compose.submitError", role: .accent, opacity: 1.0, size: .normal, placement: .low, depth: 0.22, backing: .none),
@@ -295,6 +316,7 @@ struct ContrastTests {
         switch s.backing {
         case .none: return false
         case .always: return true
+        case .skyFlag: return p.backsSkyText
         }
     }
 
@@ -310,7 +332,7 @@ struct ContrastTests {
             case .chrome(let o):
                 return composite(RGB(p.onAccent), o, over: dusked)
             case .sky, .low:
-                return isBacked(s, p) ? composite(RGB(p.onAccent), Legibility0.backingOpacity, over: dusked) : dusked
+                return isBacked(s, p) ? composite(RGB(p.onAccent), Legibility.backingOpacity, over: dusked) : dusked
             case .sheet, .card:
                 return dusked
             }
@@ -428,9 +450,8 @@ func composite(_ fg: RGB, _ alpha: Double, over bg: RGB) -> RGB {
         b: alpha * fg.b + (1 - alpha) * bg.b)
 }
 
-/// The recipe constants shared with the views: the PartnerPresence chip and the
-/// settings cards both use onAccent at 0.6.
+/// The settings card's own recipe (SettingsView.settingsRowCard): onAccent at 0.6.
+/// The legibility backing's opacity comes from the production `Legibility` constant.
 enum Legibility0 {
     static let cardOpacity = 0.6
-    static let backingOpacity = 0.6
 }
