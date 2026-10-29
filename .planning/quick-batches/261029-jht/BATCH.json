@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "batch_id": "261029-jht",
+  "created_at": "2026-10-29T19:02:10.969Z",
+  "options": {},
+  "base_revision": "b5ad8fd90a305b8055894b93dfde4db72ced51c9",
+  "items": [
+    {
+      "quick_id": "261029-jhu",
+      "client_id": null,
+      "description": "Server + wire: add a wait-leave path so abandoned waiters never dead-pair. Per .planning/todos/pending/2026-10-27-abandoned-waiters-dead-pair-with-next-arriver.md: a wait-leave endpoint (bearer participant token; LREM queue entry, delete wait entry + token ref), called from the iOS \"step back out\" action (AppModel.leave() when there is no session yet); matchmaker additionally skips+cleans queue entries whose owner stopped polling (last-polled-at on WaitEntry, ~3x the 3s poll interval), without blocking an opted-in arriver's bot window; LocalBackend/FakeBackend mirror the Backend protocol change; race tests alongside TestHumanVsBotRaceSingleSession.",
+      "status": "complete",
+      "depends_on": [],
+      "planned_files": [
+        "server/internal/store/store.go",
+        "server/internal/matchmaker/matchmaker.go",
+        "server/internal/gateway/gateway.go",
+        "server/internal/metrics/metrics.go",
+        "server/internal/gateway/wait_test.go",
+        "server/internal/gateway/bot_test.go",
+        "plan.v1.md",
+        "ios/Strangewords/Net/Backend.swift",
+        "ios/Strangewords/Net/APIClient.swift",
+        "ios/Strangewords/Net/LocalBackend.swift",
+        "ios/Strangewords/App/AppModel.swift",
+        "ios/StrangewordsTests/FakeBackend.swift",
+        "ios/StrangewordsTests/AppModelTests.swift",
+        "ios/StrangewordsTests/LocalBackendTests.swift"
+      ],
+      "directory": null,
+      "worktree": null,
+      "dispatched_worktree": null,
+      "dispatched_branch": null,
+      "dispatched_base": null,
+      "wave": 0,
+      "commit": "02d0b7e",
+      "failure_reason": null
+    },
+    {
+      "quick_id": "261029-jhv",
+      "client_id": null,
+      "description": "iOS: add a quiet leave affordance to ComposeView (both your-turn and their-turn states) wired to the existing AppModel.leave(), so a stuck session has an escape. Per .planning/todos/pending/2026-10-27-add-leave-affordance-to-compose.md: match the ritual tone (quiet chrome like the Threshold gear / \"step away\" phrasing), keep the dissolution flow, pin the copy with tests.",
+      "status": "complete",
+      "depends_on": [],
+      "planned_files": [
+        "ios/Strangewords/Features/Compose/StepAway.swift",
+        "ios/Strangewords/Features/Compose/ComposeView.swift",
+        "ios/StrangewordsTests/StepAwayTests.swift"
+      ],
+      "directory": null,
+      "worktree": null,
+      "dispatched_worktree": null,
+      "dispatched_branch": null,
+      "dispatched_base": null,
+      "wave": 0,
+      "commit": "d2ea3a6",
+      "failure_reason": null
+    }
+  ]
+}
