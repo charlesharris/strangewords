@@ -13,10 +13,12 @@ struct RootView: View {
     /// Set once the dev toggle pins a time of day, so returning to foreground
     /// doesn't snap the preview back to the real local hour.
     @State private var todPinned = false
-    /// The active theme — defaults to `SW_FORCE_THEME` (if set) or the registry
-    /// default; the dev toggle cycles it.
-    @State private var theme: any SceneTheme =
-        Themes.with(id: ProcessInfo.processInfo.environment["SW_FORCE_THEME"])
+    /// A dev-launch override of the scenery, seeded from `SW_FORCE_THEME` and cycled
+    /// by the dev chip. Never persisted, and nil in every normal launch.
+    @State private var devThemeID: String? = ProcessInfo.processInfo.environment["SW_FORCE_THEME"]
+
+    /// The active theme: the dev override, else the user's stored scenery, else nature.
+    private var theme: any SceneTheme { Themes.with(id: devThemeID ?? model.themeID) }
 
     var body: some View {
         let palette = theme.palette(tod)
@@ -64,7 +66,7 @@ struct RootView: View {
                     tod = tod.next
                 }
                 devChip(icon: "paintpalette.fill", label: theme.name, palette: palette) {
-                    theme = Themes.after(theme)
+                    devThemeID = Themes.after(theme).id
                 }
             }
             .padding(.top, 6)

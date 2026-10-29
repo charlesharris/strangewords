@@ -50,6 +50,13 @@ final class AppModel {
         didSet { settings.allowBot = allowBot }
     }
 
+    /// The user's chosen scenery as a `Themes` id (Settings → scenery). A device
+    /// preference, not identity: it survives `dissolve()` and `reset()`, is read by
+    /// `RootView`, and is never passed to the `Backend`.
+    var themeID: String {
+        didSet { settings.themeID = themeID }
+    }
+
     /// How often the poll loops ask the backend for news.
     // nonisolated: referenced from the nonisolated init's default argument; a
     // Duration is immutable/Sendable, so this is safe and keeps Swift 6 happy.
@@ -80,6 +87,9 @@ final class AppModel {
         self.tokenStore = tokenStore
         self.settings = settings
         self.allowBot = settings.allowBot
+        // Normalizes an absent or unknown stored id to nature in memory. didSet does
+        // not fire during init, so launching never writes the key.
+        self.themeID = Themes.with(id: settings.themeID).id
         self.pollInterval = pollInterval
         if let backend {
             self.api = backend
