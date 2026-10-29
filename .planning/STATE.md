@@ -4,10 +4,10 @@ current_phase: 05
 current_phase_name: Opt-In Robot Poet Collaboration
 status: verifying
 stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-10-27T23:10:50.884Z"
+last_updated: "2026-10-29T19:45:41.516Z"
 last_activity: 2026-10-27
 last_activity_desc: Phase 05 execution started
-state_head: 7a6a0bce081e4484650af1d08c20b56fe41a3552
+state_head: ad5a0463ac8e3ace7f466ffdcfb32fd60a8177b7
 progress:
   total_phases: 5
   completed_phases: 1
@@ -121,6 +121,7 @@ None yet.
 | 9 | fast: rename user-facing app name to "Strange Words" | 2026-10-27 | eda3ba3 | — |
 | 261029-jhu | Server + wire: wait-leave path so abandoned waiters never dead-pair (endpoint, liveness skip, bind-protocol races, iOS leaveWait) | 2026-10-29 | 02d0b7e | .planning/quick/261029-jhu-server-wire-add-a-wait-leave-path-so-abandoned-waiters-never |
 | 261029-jhv | iOS: quiet step-away escape from Compose with confirmation, copy pinned by tests | 2026-10-29 | d2ea3a6 | .planning/quick/261029-jhv-ios-add-a-quiet-leave-affordance-to-composeview-both-your-tu |
+| 12 | Add a theme selector ("scenery") to the settings sheet | 2026-10-29 | ad5a046 | 261029-k47-add-a-theme-selector-to-the-settings-she |
 
 ### Roadmap Evolution
 
