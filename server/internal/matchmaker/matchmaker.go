@@ -6,6 +6,7 @@ package matchmaker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/rand/v2"
 	"time"
 
@@ -100,6 +101,42 @@ func (m *Matchmaker) pair(ctx context.Context, waiter *store.WaitEntry, arriverT
 	waiter.MatchedSessionID = sess.ID
 	_ = m.st.SaveWait(ctx, waiter)
 	return sess, nil
+}
+
+// LeaveWait is the "step back out" path (plan.v1.md §7): a waiter withdraws
+// before seeing a match. It removes the waiter from its queue (LREM) and then
+// deletes the wait record and token ref, but only if the token ref still points
+// at the wait. When a pairing bound the ref first, nothing is deleted and the
+// session id is returned so the caller dissolves it; otherwise it returns "".
+func (m *Matchmaker) LeaveWait(ctx context.Context, token, waitID string) (matchedSessionID string, err error) {
+	w, err := m.st.GetWait(ctx, waitID)
+	switch {
+	case err == nil:
+		// Whether this call removed the entry does not matter: correctness rests
+		// on the conditional delete below.
+		if _, err := m.st.ClaimWaiter(ctx, w.Bucket, w.ID); err != nil {
+			return "", err
+		}
+	case errors.Is(err, store.ErrNotFound):
+		// Record expired; PopWaiter already skips ids whose record is gone.
+	default:
+		return "", err
+	}
+
+	ref, dropped, err := m.st.DropWaitIfUnbound(ctx, token, waitID)
+	if errors.Is(err, store.ErrNotFound) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if dropped {
+		return "", nil
+	}
+	if ref.Kind == store.KindSession {
+		return ref.RefID, nil
+	}
+	return "", fmt.Errorf("matchmaker: wait leave found unexpected ref kind %q", ref.Kind)
 }
 
 // PairWithBot pairs an opted-in waiter with the robot poet. It first claims the

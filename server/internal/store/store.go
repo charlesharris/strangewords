@@ -188,6 +188,50 @@ func (s *Store) DelWait(ctx context.Context, id string) error {
 	return s.rdb.Del(ctx, waitKey(id)).Err()
 }
 
+// DropWaitIfUnbound removes a waiter that is leaving, but only while its token
+// ref still points at that wait. The token ref is the waiter's ownership record:
+// a pairing (or a bot claim) binds it to a session with SET XX, and this delete
+// runs under WATCH on the same key, so exactly one side wins. If a pairing bound
+// the ref first, nothing is deleted (the partner's session must not lose a
+// participant silently) and the bound ref is returned so the caller can dissolve
+// that session. On a lost WATCH race the ref is re-read once; one attempt, no
+// retry loop. ErrNotFound means the ref is already gone (expired or dropped).
+func (s *Store) DropWaitIfUnbound(ctx context.Context, token, waitID string) (Ref, bool, error) {
+	var ref Ref
+	dropped := false
+	err := s.rdb.Watch(ctx, func(tx *redis.Tx) error {
+		v, err := tx.Get(ctx, tokKey(token)).Bytes()
+		if errors.Is(err, redis.Nil) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(v, &ref); err != nil {
+			return err
+		}
+		if ref.Kind != KindWait || ref.RefID != waitID {
+			return nil
+		}
+		_, err = tx.TxPipelined(ctx, func(p redis.Pipeliner) error {
+			p.Del(ctx, tokKey(token), waitKey(waitID))
+			return nil
+		})
+		if err == nil {
+			dropped = true
+		}
+		return err
+	}, tokKey(token))
+	if errors.Is(err, redis.TxFailedErr) {
+		cur, gerr := s.GetRef(ctx, token)
+		return cur, false, gerr
+	}
+	if err != nil {
+		return Ref{}, false, err
+	}
+	return ref, dropped, nil
+}
+
 // ---- sessions ----
 
 func (s *Store) SaveSession(ctx context.Context, sess *sessions.Session) error {

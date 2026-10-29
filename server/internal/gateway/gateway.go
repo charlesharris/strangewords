@@ -55,6 +55,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /privacy", s.handlePrivacy) // public privacy policy page
 	mux.HandleFunc("POST /v1/enter", s.handleEnter)
 	mux.HandleFunc("GET /v1/waiting", s.handleWaiting)
+	mux.HandleFunc("POST /v1/wait/leave", s.handleWaitLeave)
 	mux.HandleFunc("GET /v1/session/{id}", s.handleGetSession)
 	mux.HandleFunc("POST /v1/session/{id}/line", s.handleLine)
 	mux.HandleFunc("POST /v1/session/{id}/leave", s.handleLeave)
@@ -203,6 +204,58 @@ func (s *Server) handleWaiting(w http.ResponseWriter, r *http.Request) {
 	s.touchPresence(r.Context(), sess, idx)
 	v := sess.ViewFor(token)
 	writeJSON(w, http.StatusOK, map[string]any{"state": "matched", "session": v})
+}
+
+// handleWaitLeave is the "step back out" path for a participant who has not yet
+// seen a match (plan.v1.md §7). It acts only on the ref resolved from the
+// caller's own bearer token. If a match landed before the leave arrived, the
+// session is dissolved so the partner gets 410 rather than a dead poem.
+func (s *Server) handleWaitLeave(w http.ResponseWriter, r *http.Request) {
+	token, ok := bearer(r)
+	if !ok {
+		writeErr(w, http.StatusUnauthorized, "no_token", "missing bearer token")
+		return
+	}
+	ctx := r.Context()
+	ref, err := s.st.GetRef(ctx, token)
+	if errors.Is(err, store.ErrNotFound) {
+		writeErr(w, http.StatusGone, "session_gone", "your wait has ended")
+		return
+	}
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+
+	var waitID, sessID string
+	switch ref.Kind {
+	case store.KindWait:
+		waitID = ref.RefID
+		sessID, err = s.mm.LeaveWait(ctx, token, waitID)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		if sessID == "" {
+			metrics.WaitLeft.Inc()
+			writeJSON(w, http.StatusOK, map[string]string{"status": "left"})
+			return
+		}
+	case store.KindSession:
+		sessID = ref.RefID
+	}
+
+	sess, err := s.loadSession(ctx, sessID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	s.dissolve(ctx, sess)
+	if waitID != "" {
+		_ = s.st.DelWait(ctx, waitID) // best-effort; WaitTTL is the backstop
+	}
+	metrics.WaitLeft.Inc()
+	writeJSON(w, http.StatusOK, map[string]string{"status": "dissolved"})
 }
 
 // ---- session actions ----
