@@ -137,3 +137,23 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [x] 05-03-PLAN.md — iOS UI: the Threshold gear and settings sheet, the waiting soft line, and the robot-poet chip with honest copy in Compose and Reveal, with copy pinned by PartnerPresenceTests
+
+### Phase 6: Two-Poem Trade
+
+**Goal:** An encounter can become a two-poem trade. After poem 1's reveal, either participant may offer to trade back; when both accept, poem 2 begins in the same session with the start roles swapped (the other participant writes lines 1 and 3). Reveal happens after each poem; declining or leaving dissolves as today. The robot poet trades too: it accepts automatically and continues its deterministic replay. Keepsakes become one coined name per poem, and the keepsake's kind line ("a scented candle") is removed everywhere. LocalBackend mirrors the full trade arc; tests on both sides.
+**Requirements**: TBD
+**Depends on:** Phase 5
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 6 to break down)
+
+### Phase 7: Two-Poem Trade
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 6
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 7 to break down)
