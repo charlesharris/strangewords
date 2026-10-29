@@ -28,17 +28,19 @@ struct WaitingView: View {
                 if let line = PartnerPresence.waitingLine(allowBot: model.allowBot, connecting: connecting) {
                     Text(line)
                         .font(Theme.label)
-                        .foregroundStyle(palette.secondary.opacity(0.8))
+                        .foregroundStyle(palette.secondary)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            .skyTextBacking(palette)
             Spacer()
 
             if !connecting {
                 Button("step back out") { model.leave() }
                     .font(Theme.label)
                     .foregroundStyle(palette.secondary)
+                    .legibilityBacking(palette)
                 Spacer().frame(height: 24)
             }
         }

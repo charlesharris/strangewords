@@ -65,14 +65,16 @@ struct ComposeView: View {
                 .focused($focused)
                 .submitLabel(.done)
                 .accessibilityLabel("Your line, line \(session.currentLine + 1)")
+                .legibilityBacking(palette)
 
             syllableHint
 
             if let err = model.submitError {
                 Text(err)
                     .font(Theme.label)
-                    .foregroundStyle(palette.accent)
+                    .foregroundStyle(palette.ink)
                     .multilineTextAlignment(.center)
+                    .legibilityBacking(palette)
             }
 
             Button(action: model.submit) {
@@ -86,18 +88,25 @@ struct ComposeView: View {
     /// A quiet, optional nudge — never a gate. The 5-7-5 of a haiku is a gentle
     /// shape to lean toward, not a rule that holds your line back, so the hint
     /// stays recessive and is worded as an invitation (brief.v4.md §9).
+    @ViewBuilder
     private var syllableHint: some View {
         let count = Syllables.count(model.draft)
         let target = session.currentTarget
-        return Text(hintText(count: count, target: target))
+        let label = Text(hintText(count: count, target: target))
             .font(Theme.label)
-            .foregroundStyle(palette.secondary.opacity(0.7))
+            .foregroundStyle(palette.secondary)
             .multilineTextAlignment(.center)
             .animation(.easeInOut(duration: 0.25), value: count)
             .accessibilityLabel(
                 target.map { "About \($0) syllables suits this line. You've written \(count)." }
                     ?? "\(count) syllables"
             )
+        // The blank placeholder (no target, nothing typed) must not draw an empty pill.
+        if target == nil && count == 0 {
+            label
+        } else {
+            label.legibilityBacking(palette)
+        }
     }
 
     private func hintText(count: Int, target: Int?) -> String {
@@ -122,9 +131,10 @@ struct ComposeView: View {
                 .foregroundStyle(palette.secondary)
             Text(copy.secondary)
                 .font(Theme.label)
-                .foregroundStyle(palette.secondary.opacity(0.8))
+                .foregroundStyle(palette.secondary)
                 .multilineTextAlignment(.center)
         }
+        .legibilityBacking(palette)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(copy.accessibility)
     }

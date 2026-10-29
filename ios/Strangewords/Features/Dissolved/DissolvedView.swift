@@ -42,6 +42,7 @@ struct DissolvedView: View {
                     .foregroundStyle(palette.secondary)
             }
             .multilineTextAlignment(.center)
+            .skyTextBacking(palette)
             .opacity(appeared ? 1 : 0)
             .animation(.easeIn(duration: 1.2), value: appeared)
 
@@ -62,6 +63,7 @@ struct DissolvedView: View {
                 .font(Theme.poem(22))
                 .foregroundStyle(palette.ink)
                 .multilineTextAlignment(.center)
+                .skyTextBacking(palette)
             Spacer()
             beginAgainButton
             Spacer().frame(height: 40)

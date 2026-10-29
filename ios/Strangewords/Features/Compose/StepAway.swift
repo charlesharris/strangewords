@@ -28,6 +28,7 @@ struct StepAway: View {
             Text(Self.label)
                 .font(Theme.label)
                 .foregroundStyle(palette.secondary)
+                .legibilityBacking(palette)
                 .frame(minWidth: 44, minHeight: 44)
                 .contentShape(Rectangle())
         }
