@@ -26,7 +26,19 @@ import Foundation
 /// arriver pops them; the mock has no queue or other arrivers, so there is nothing
 /// to drop.
 /// DRIFT: the mock starts with your turn, where the server picks `StartIndex` at
-/// random, so the robot poet may write first there.
+/// random, so the robot poet may write first there. Poem 2 starts with the stranger,
+/// as on the server after a trade (the start seat moves one later).
+///
+/// Phase 6 trade back (`tradeBack`) mirrors the server's offer-and-accept arc
+/// (`TestTradeTracer`, `TestBotTradesBack` in server/internal/gateway/trade_test.go):
+/// the complete view reports `tradeOpen` while a later poem exists, offering and
+/// accepting are the same call, and the call that makes every participant ask begins
+/// poem 2 in the same session with the roles swapped (D-03).
+/// DRIFT: the mock human stranger always offers to trade back after its think time at
+/// poem 1's reveal, so one simulator can design the accept state; a real stranger may
+/// never offer.
+/// DRIFT: the mock reuses `strangerThinkTime` for the stranger's offer and acceptance,
+/// where the server's robot poet uses `BotThink` and humans answer when they answer.
 actor LocalBackend: Backend {
     private let sessionId = "local-poem"
     private let you = 0
@@ -51,6 +63,20 @@ actor LocalBackend: Backend {
     private var status = "active"
     private var strangerTurnSince: Date?
 
+    /// Mirrors sessions.MaxPoems: poems in one encounter. [TUNABLE]
+    static let maxPoems = 2
+
+    /// Which poem of the encounter this is, from 1.
+    private var poemNumber = 1
+    /// You have offered (or accepted); the stranger has not answered yet.
+    private var youWantTrade = false
+    /// The stranger has offered (or accepted).
+    private var strangerWantsTrade = false
+    /// When the reveal began, to pace the stranger's offer.
+    private var revealSince: Date?
+    /// When you asked, to pace the stranger's acceptance.
+    private var tradeSince: Date?
+
     /// A few middle lines (~7 syllables) the stranger might offer, rotated so a
     /// repeated test run doesn't always read the same.
     private let strangerLines = [
@@ -60,6 +86,16 @@ actor LocalBackend: Backend {
         "snow settles on the still pine",
     ]
     private var strangerPick = 0
+
+    /// Five-syllable lines for the opening and closing slots of a poem the stranger
+    /// writes in (poem 2, after the roles swap). Each scores 5 under `Syllables.count`.
+    private let strangerShortLines = [
+        "soft rain on the roof",
+        "a lone crow calls out",
+        "the old bell rings twice",
+        "cold wind through bare trees",
+    ]
+    private var strangerShortPick = 0
 
     /// True once the wait ended with the robot poet; surfaced as `partnerIsBot`.
     private var partnerIsBot = false
@@ -76,8 +112,9 @@ actor LocalBackend: Backend {
         self.botWindow = botWindow
     }
 
-    // Round-robin over two participants from start index 0.
-    private var currentAuthor: Int { currentLine % 2 }
+    // Round-robin over two participants from start index 0, with poem N starting one
+    // seat later: Session.AuthorOf's poem offset (D-03).
+    private var currentAuthor: Int { (currentLine + poemNumber - 1) % 2 }
     private var yourTurn: Bool { status == "active" && currentAuthor == you }
     private var lineCount: Int { targets.count }
 
@@ -92,9 +129,16 @@ actor LocalBackend: Backend {
             currentAuthor: currentAuthor,
             yourTurn: yourTurn,
             lines: lines,
-            partnerIsBot: partnerIsBot
+            partnerIsBot: partnerIsBot,
+            poemNumber: poemNumber,
+            tradeOpen: tradeOpen,
+            youWantTrade: youWantTrade,
+            partnerWantsTrade: strangerWantsTrade
         )
     }
+
+    /// A later poem exists and this one is finished.
+    private var tradeOpen: Bool { status == "complete" && poemNumber < Self.maxPoems }
 
     // MARK: - Backend
 
@@ -106,6 +150,8 @@ actor LocalBackend: Backend {
         strangerTurnSince = nil
         partnerIsBot = false
         waitingSince = nil
+        resetTrade()
+        poemNumber = 1
         try? await Task.sleep(for: enterDelay) // a breath at the threshold
         guard allowBot else {
             return EnterResponse(participantToken: "local", state: "matched", session: view(), waitId: nil)
@@ -135,6 +181,7 @@ actor LocalBackend: Backend {
            Date().timeIntervalSince(since) >= strangerThinkTime {
             writeStrangerLine()
         }
+        settleTrade()
         return view()
     }
 
@@ -148,7 +195,16 @@ actor LocalBackend: Backend {
     }
 
     func tradeBack(id: String, token: String) async throws -> SessionView {
-        throw APIError.wrongTurn // scaffold for the red commit; the arc lands next
+        if status == "dissolved" { throw APIError.gone }
+        guard tradeOpen else { throw APIError.wrongTurn } // the server's 409 trade_closed
+        if youWantTrade { return view() } // an idempotent repeat
+        youWantTrade = true
+        if strangerWantsTrade {
+            beginNextPoem()
+        } else {
+            tradeSince = Date()
+        }
+        return view()
     }
 
     func leave(id: String, token: String) async { dissolve() }
@@ -161,6 +217,7 @@ actor LocalBackend: Backend {
         lines = []
         strangerTurnSince = nil
         waitingSince = nil
+        resetTrade()
     }
 
     // MARK: - Line validation
@@ -220,9 +277,52 @@ actor LocalBackend: Backend {
     // MARK: - Turn machinery
 
     private func writeStrangerLine() {
-        lines.append(strangerLines[strangerPick % strangerLines.count])
-        strangerPick += 1
+        // The 5-syllable slots take a 5-syllable line, so poem 2's opener and closer
+        // fit; poem 1's stranger only ever writes the 7-syllable middle line.
+        if targets[currentLine] == 5 {
+            lines.append(strangerShortLines[strangerShortPick % strangerShortLines.count])
+            strangerShortPick += 1
+        } else {
+            lines.append(strangerLines[strangerPick % strangerLines.count])
+            strangerPick += 1
+        }
         advance()
+    }
+
+    /// At a tradeable reveal the mock stranger answers after its think time: it
+    /// accepts your offer, or (a human stranger only) offers first. The robot poet
+    /// accepts but never offers, like the server (D-06).
+    private func settleTrade() {
+        guard tradeOpen else { return }
+        let now = Date()
+        if youWantTrade, !strangerWantsTrade, let since = tradeSince,
+           now.timeIntervalSince(since) >= strangerThinkTime {
+            beginNextPoem()
+        } else if !partnerIsBot, !youWantTrade, !strangerWantsTrade, let since = revealSince,
+                  now.timeIntervalSince(since) >= strangerThinkTime {
+            strangerWantsTrade = true
+        }
+    }
+
+    /// Poem N+1 in the same encounter: the poem-level fields reset in place, as on the
+    /// server (Session.BeginNextPoem), and the roles swap through `currentAuthor`.
+    private func beginNextPoem() {
+        poemNumber += 1
+        lines = []
+        currentLine = 0
+        status = "active"
+        youWantTrade = false
+        strangerWantsTrade = false
+        tradeSince = nil
+        revealSince = nil
+        strangerTurnSince = yourTurn ? nil : Date()
+    }
+
+    private func resetTrade() {
+        youWantTrade = false
+        strangerWantsTrade = false
+        revealSince = nil
+        tradeSince = nil
     }
 
     private func advance() {
@@ -230,6 +330,7 @@ actor LocalBackend: Backend {
         if currentLine >= lineCount {
             status = "complete"
             strangerTurnSince = nil
+            revealSince = Date()
         } else {
             // Mark when the stranger's turn began so getSession can pace it.
             strangerTurnSince = yourTurn ? nil : Date()
