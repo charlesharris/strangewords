@@ -30,6 +30,9 @@ var (
 	PoemsCompleted = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_poems_completed_total", Help: "Poems that reached completion."})
 	Dissolved      = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_dissolved_total", Help: "Sessions torn down."})
 
+	TradesOffered = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_trades_offered_total", Help: "Trade-back offers made after a poem's reveal (the first participant to ask)."})
+	TradesBegun   = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_trades_begun_total", Help: "Second poems begun after every participant asked to trade back."})
+
 	WaitLeft            = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_wait_left_total", Help: "Waiters who stepped back out before seeing a match."})
 	StaleWaitersDropped = promauto.NewCounter(prometheus.CounterOpts{Name: "sw_stale_waiters_dropped_total", Help: "Queued waiters dropped at pair time because they had stopped polling."})
 )
