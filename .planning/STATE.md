@@ -4,17 +4,19 @@ current_phase: 05
 current_phase_name: Opt-In Robot Poet Collaboration
 status: verifying
 stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-10-29T19:45:41.516Z"
+last_updated: "2026-10-29T20:26:52.427Z"
 last_activity: 2026-10-27
 last_activity_desc: Phase 05 execution started
-state_head: ad5a0463ac8e3ace7f466ffdcfb32fd60a8177b7
+state_head: 878735def935de2c92861b2082b6dbfcdd89b2f7
 progress:
-  total_phases: 5
+  total_phases: 7
   completed_phases: 1
   total_plans: 11
   completed_plans: 9
-  percent: 20
+  percent: 14
 ---
+
+Total Phases: 2
 
 # Project State
 
@@ -32,7 +34,7 @@ Plan: 3 of 3
 Status: Phase complete — ready for verification
 Last activity: 2026-10-27 — Phase 05 execution started
 
-Progress: [██░░░░░░░░] 20%
+Progress: [█░░░░░░░░░] 14%
 
 ## Performance Metrics
 
@@ -122,6 +124,8 @@ None yet.
 | 261029-jhu | Server + wire: wait-leave path so abandoned waiters never dead-pair (endpoint, liveness skip, bind-protocol races, iOS leaveWait) | 2026-10-29 | 02d0b7e | .planning/quick/261029-jhu-server-wire-add-a-wait-leave-path-so-abandoned-waiters-never |
 | 261029-jhv | iOS: quiet step-away escape from Compose with confirmation, copy pinned by tests | 2026-10-29 | d2ea3a6 | .planning/quick/261029-jhv-ios-add-a-quiet-leave-affordance-to-composeview-both-your-tu |
 | 12 | Add a theme selector ("scenery") to the settings sheet | 2026-10-29 | ad5a046 | 261029-k47-add-a-theme-selector-to-the-settings-she |
+| 261029-l7k | Non-poem text contrast: all 207 theme x time-of-day cells now pass WCAG AA (backings where no color can pass; scenes pinned unchanged) | 2026-11-02 | 2a297f3 | .planning/quick/261029-l7k-ios-non-poem-text-contrast-across-all-themes-add-automated-w |
+| 261029-l7l | Return key offers the line; line breaks can never enter the draft (DraftInput edit rule, paste-safe) | 2026-11-02 | e8b6f55 | .planning/quick/261029-l7l-ios-the-return-key-must-offer-the-line-never-insert-a-newlin |
 
 ### Roadmap Evolution
 

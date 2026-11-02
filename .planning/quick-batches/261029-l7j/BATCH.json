@@ -9,7 +9,7 @@
       "quick_id": "261029-l7k",
       "client_id": null,
       "description": "iOS: non-poem text contrast across all themes. Add automated WCAG contrast tests that compute the contrast ratio of every non-poem text color (chrome, captions, helper copy, button labels, secondary/ink-opacity text) against the backgrounds it actually renders over, for every theme x time-of-day palette combination (Nature/SciFi/Fantasy in Design/Themes, palettes per TimeOfDay in Design/Theme.swift). Set WCAG AA thresholds (4.5:1 for normal text, 3:1 for large text), then tweak the TEXT color values (not the scene backgrounds) in the palettes that fail until every combination passes. Poem text itself is out of scope unless it also fails badly. Record before/after ratios in the summary.",
-      "status": "pending",
+      "status": "complete",
       "depends_on": [],
       "planned_files": [
         "ios/StrangewordsTests/ContrastTests.swift",
@@ -29,14 +29,14 @@
       "dispatched_branch": null,
       "dispatched_base": null,
       "wave": 0,
-      "commit": null,
+      "commit": "2a297f3",
       "failure_reason": null
     },
     {
       "quick_id": "261029-l7l",
       "client_id": null,
       "description": "iOS: the return key must offer the line, never insert a newline. In the Compose input, hitting enter/return currently inserts a newline (which the server would reject via CleanLine's control-character rule anyway); change it so return triggers the same action as the \"offer this line\" button when the draft is valid (and does nothing destructive when empty), newlines can never be typed or pasted into the draft (strip on input), and the behavior is pinned by tests.",
-      "status": "pending",
+      "status": "complete",
       "depends_on": [],
       "planned_files": [
         "ios/Strangewords/Features/Compose/DraftInput.swift",
@@ -51,7 +51,7 @@
       "dispatched_branch": null,
       "dispatched_base": null,
       "wave": 1,
-      "commit": null,
+      "commit": "e8b6f55",
       "failure_reason": null
     }
   ]
