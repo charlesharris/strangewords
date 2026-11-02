@@ -6,6 +6,7 @@ package botplayer
 
 import (
 	"hash/fnv"
+	"strconv"
 
 	"strangewords/internal/poet"
 	"strangewords/internal/sessions"
@@ -16,23 +17,37 @@ import (
 // syllables, matching the haiku's first and last lines.
 const fallbackLine = "still water at dusk"
 
-// Seed derives a poem's poet seed from its session id (FNV-1a 64). It is the
-// same derivation as cmd/bot's seedFor, so one session keeps one theme.
+// Seed derives poem 1's poet seed from its session id (FNV-1a 64). It is the
+// same derivation as cmd/bot's seedFor, so one session keeps one theme. cmd/bot
+// never trades back, because it dismisses at the reveal, which is D-02's decline.
 func Seed(sessionID string) uint64 {
 	h := fnv.New64a()
 	h.Write([]byte(sessionID))
 	return h.Sum64()
 }
 
-// PoemSeed is a deliberately wrong stub (RED) until the per-poem seed lands.
-func PoemSeed(sessionID string, poem int) uint64 { return 0 }
+// PoemSeed is the poet seed for the given poem ordinal. Each poem gets its own
+// deterministic poet (Phase 6 D-06; poet.New's "make one per poem"). Poem 1 (and
+// a pre-Phase-6 blob's poem 0) keeps Seed, so sessions in flight at deploy replay
+// unchanged. Later poems hash the id, a single '#' byte and the decimal poem
+// number; ids are base64url and never contain '#'.
+func PoemSeed(sessionID string, poem int) uint64 {
+	if poem <= 1 {
+		return Seed(sessionID)
+	}
+	h := fnv.New64a()
+	h.Write([]byte(sessionID))
+	h.Write([]byte{'#'})
+	h.Write([]byte(strconv.Itoa(poem)))
+	return h.Sum64()
+}
 
 // NextLine returns the robot poet's line for s.CurrentLine. It rebuilds the
-// poet from the session id and replays, discarding the output, every earlier
-// line the bot authored, so the RNG and the poet's used/mine state advance
+// poet from the session id and poem number and replays, discarding the output,
+// every earlier line the bot authored in the current poem, so the RNG and the poet's used/mine state advance
 // exactly as they did when those lines were first written.
 func NextLine(s *sessions.Session) string {
-	p := poet.New(Seed(s.ID))
+	p := poet.New(PoemSeed(s.ID, s.PoemCount))
 	form := sessions.LookupForm(s.FormID)
 	for i := 0; i < s.CurrentLine && i < len(s.Lines); i++ {
 		a := s.AuthorOf(i)

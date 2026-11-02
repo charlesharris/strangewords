@@ -459,6 +459,12 @@ func (s *Server) handleTrade(w http.ResponseWriter, r *http.Request) {
 			began = true
 			return store.SessionTTL, true
 		}
+		if f.HasBot() {
+			// D-06: the robot poet answers after its usual think time, never
+			// instantly. A repeat call writes nothing (above), so a second tap
+			// never re-arms or delays it.
+			f.BotReadyAt = now.Add(s.cfg.BotThink).UnixMilli()
+		}
 		return store.RevealTTL, true // the offer ages out with the reveal
 	})
 	switch {
@@ -566,43 +572,69 @@ func (s *Server) authSession(w http.ResponseWriter, r *http.Request) (sess *sess
 	return sess, token, ref.Idx, true
 }
 
-// settleBot lets the robot poet write its current line if it is due, on the
-// human's poll. It returns the session the caller should use from then on.
+// settleBot lets the robot poet act if it is due, on the human's poll: write its
+// current line, or accept a human's trade-back offer. It returns the session the
+// caller should use from then on.
 //
 // Concurrency contract: the handler's load is only a cheap pre-check. The
 // decision to write is re-made on UpdateSession's fresh read and persisted only
 // through WATCH/MULTI/EXEC, so racing settles yield exactly one bot line (the
 // loser's save aborts), and a human line written between a stale poll's load and
 // its settle survives because the transaction aborts on any later write (or
-// delete, so a dissolved session is never resurrected). An aborted settle
+// delete, so a dissolved session is never resurrected). The same compare-and-set
+// settles the robot poet's trade acceptance (Phase 6). An aborted settle
 // persists nothing and returns the latest stored state; a later poll writes the
-// line if it is still due. At most one line per call: no loop, retry or lock.
+// line if it is still due. At most one action per call: no loop, retry or lock.
 func (s *Server) settleBot(ctx context.Context, sess *sessions.Session) (*sessions.Session, error) {
 	now := s.now()
-	if !sess.BotTurn() || now.UnixMilli() < sess.BotReadyAt {
+	if !(sess.BotTurn() || sess.BotTradeDue()) || now.UnixMilli() < sess.BotReadyAt {
 		return sess, nil
 	}
-	var wrote, completed bool
+	var wrote, completed, began bool
 	fresh, err := s.st.UpdateSession(ctx, sess.ID, func(f *sessions.Session) (time.Duration, bool) {
-		if !f.BotTurn() || now.UnixMilli() < f.BotReadyAt {
-			return 0, false // another poll already settled this line, or the poem moved on
+		wrote, completed, began = false, false, false
+		if now.UnixMilli() < f.BotReadyAt {
+			return 0, false // another poll already settled this, or the robot poet is not ready
 		}
-		bot := f.CurrentAuthor()
-		line := botplayer.NextLine(f)
-		f.Lines = append(f.Lines, line)
-		f.CurrentLine++
-		f.Participants[bot].LastSeen = now.UnixMilli()
-		wrote = true
-		if f.IsComplete() {
-			f.Status = sessions.StatusComplete
-			f.CompletedAt = now.UnixMilli()
-			completed = true
+		switch {
+		case f.BotTurn():
+			bot := f.CurrentAuthor()
+			line := botplayer.NextLine(f)
+			f.Lines = append(f.Lines, line)
+			f.CurrentLine++
+			f.Participants[bot].LastSeen = now.UnixMilli()
+			wrote = true
+			if f.IsComplete() {
+				f.Status = sessions.StatusComplete
+				f.CompletedAt = now.UnixMilli()
+				completed = true
+				return store.RevealTTL, true
+			}
+			if f.BotTurn() {
+				f.BotReadyAt = now.Add(s.cfg.BotThink).UnixMilli()
+			}
+			return store.SessionTTL, true
+		case f.BotTradeDue():
+			// D-06: the robot poet accepts a human's offer once its think time has
+			// passed. It never offers.
+			for i := range f.Participants {
+				if f.Participants[i].Bot && !f.Participants[i].WantsTrade {
+					f.Participants[i].WantsTrade = true
+					f.Participants[i].LastSeen = now.UnixMilli()
+					break
+				}
+			}
+			if f.AllWantTrade() {
+				f.BeginNextPoem()
+				if f.BotTurn() {
+					f.BotReadyAt = now.Add(s.cfg.BotThink).UnixMilli()
+				}
+				began = true
+				return store.SessionTTL, true
+			}
 			return store.RevealTTL, true
 		}
-		if f.BotTurn() {
-			f.BotReadyAt = now.Add(s.cfg.BotThink).UnixMilli()
-		}
-		return store.SessionTTL, true
+		return 0, false // the poem moved on, or nothing is due
 	})
 	switch {
 	case errors.Is(err, store.ErrConflict):
@@ -617,6 +649,10 @@ func (s *Server) settleBot(ctx context.Context, sess *sessions.Session) (*sessio
 		if completed {
 			metrics.PoemsCompleted.Inc()
 		}
+	}
+	if began {
+		metrics.TradesBegun.Inc()
+		s.purgePoemCache(ctx, fresh)
 	}
 	return fresh, nil
 }

@@ -122,6 +122,35 @@ func (s *Session) AllWantTrade() bool {
 	return len(s.Participants) > 0
 }
 
+// HasBot reports whether any participant is the robot poet.
+func (s *Session) HasBot() bool {
+	for _, p := range s.Participants {
+		if p.Bot {
+			return true
+		}
+	}
+	return false
+}
+
+// BotTradeDue reports whether the robot poet owes an acceptance: the reveal is
+// still tradeable, some human has asked, and some bot has not answered. The
+// robot poet only ever accepts, never offers (D-06).
+func (s *Session) BotTradeDue() bool {
+	if !s.TradeOpen() {
+		return false
+	}
+	human, bot := false, false
+	for _, p := range s.Participants {
+		switch {
+		case !p.Bot && p.WantsTrade:
+			human = true
+		case p.Bot && !p.WantsTrade:
+			bot = true
+		}
+	}
+	return human && bot
+}
+
 // BeginNextPoem resets the poem-level fields in place and bumps the poem
 // ordinal (Phase 6 D-01, D-03). The encounter persists: ID, Participants
 // (tokens, LastSeen, Dismissed, Bot), StartIndex, Bucket, CreatedAt, FormID,
