@@ -26,6 +26,11 @@ struct DissolvedView: View {
 
     // MARK: - The keepsake the poem left behind
 
+    /// What VoiceOver reads for the coined names, one sentence per keepsake.
+    static func keepsakeAccessibility(_ keepsakes: [CoinedName]) -> String {
+        keepsakes.map { "\($0.lead) \($0.name), \($0.kind)." }.joined(separator: " ")
+    }
+
     private func keepsakeBody(_ keepsake: CoinedName) -> some View {
         VStack(spacing: 32) {
             Spacer()

@@ -70,4 +70,23 @@ struct PoemNamingTests {
     @Test func coinIsDeterministic() {
         #expect(PoemNaming.coin(from: Self.classicHaiku) == PoemNaming.coin(from: Self.classicHaiku))
     }
+
+    // MARK: - D-05: the category is gone everywhere
+
+    /// `CoinedName` carries only the lead and the name (Phase 6 D-05).
+    @Test func coinedNameCarriesOnlyLeadAndName() throws {
+        let coined = try #require(PoemNaming.coin(from: Self.classicHaiku))
+        let labels = Mirror(reflecting: coined).children.compactMap(\.label)
+        #expect(labels == ["lead", "name"])
+    }
+
+    /// The Dissolved screen's VoiceOver label names no category, for one
+    /// keepsake or two (Phase 6 D-05).
+    @Test func keepsakeAccessibilityNamesNoCategory() throws {
+        let c = try #require(PoemNaming.coin(from: Self.classicHaiku))
+        #expect(DissolvedView.keepsakeAccessibility([c]) == "\(c.lead) \(c.name).")
+        let c2 = try #require(PoemNaming.coin(from: ["moon", "moon", "moon"]))
+        #expect(DissolvedView.keepsakeAccessibility([c, c2])
+            == "\(c.lead) \(c.name). \(c2.lead) \(c2.name).")
+    }
 }
