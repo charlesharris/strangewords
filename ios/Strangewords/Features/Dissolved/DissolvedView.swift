@@ -3,10 +3,9 @@ import SwiftUI
 /// The gentle conclusion. Invites return, never apologizes (brief.v4.md §8).
 ///
 /// When a poem actually *completed*, the dissolution leaves one durable thing
-/// behind: a name it coined for some random small thing — a beer, a mustard, a
-/// racehorse (see `Naming/PoemNaming.swift`). The poem is still gone; this is the
-/// keepsake. Every other ending (a stranger left, no one came) shows the plain
-/// farewell.
+/// behind: a name it coined for itself (see `Naming/PoemNaming.swift`). The poem
+/// is still gone; this is the keepsake. Every other ending (a stranger left, no
+/// one came) shows the plain farewell.
 struct DissolvedView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.palette) private var palette
@@ -28,7 +27,7 @@ struct DissolvedView: View {
 
     /// What VoiceOver reads for the coined names, one sentence per keepsake.
     static func keepsakeAccessibility(_ keepsakes: [CoinedName]) -> String {
-        keepsakes.map { "\($0.lead) \($0.name), \($0.kind)." }.joined(separator: " ")
+        keepsakes.map { "\($0.lead) \($0.name)." }.joined(separator: " ")
     }
 
     private func keepsakeBody(_ keepsake: CoinedName) -> some View {
@@ -42,9 +41,6 @@ struct DissolvedView: View {
                     .font(Theme.display(34))
                     .foregroundStyle(palette.ink)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(keepsake.kind)
-                    .font(Theme.poemItalic(17))
-                    .foregroundStyle(palette.secondary)
             }
             .multilineTextAlignment(.center)
             .skyTextBacking(palette)
@@ -56,7 +52,7 @@ struct DissolvedView: View {
             Spacer().frame(height: 40)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(keepsake.lead) \(keepsake.name), \(keepsake.kind).")
+        .accessibilityLabel(Self.keepsakeAccessibility([keepsake]))
     }
 
     // MARK: - The plain farewell

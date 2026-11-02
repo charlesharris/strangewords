@@ -149,8 +149,8 @@ struct ContrastTests {
     // MARK: - 8. The printed matrix
 
     @Test func contrastMatrix() {
-        #expect(Self.inventory.count == 23)
-        #expect(Set(Self.inventory.map(\.id)).count == 23, "surface ids must be unique")
+        #expect(Self.inventory.count == 22)
+        #expect(Set(Self.inventory.map(\.id)).count == 22, "surface ids must be unique")
         var lines: [String] = []
         for cell in Self.cells {
             for s in Self.inventory {
@@ -162,7 +162,7 @@ struct ContrastTests {
                 ].joined(separator: "|"))
             }
         }
-        #expect(lines.count == 207)
+        #expect(lines.count == 198)
         print(lines.joined(separator: "\n"))
         fflush(stdout)
     }
@@ -225,8 +225,8 @@ struct ContrastTests {
     /// Poem text (PoemLine and the Compose draft): held to 3:1, not the non-poem bar.
     static let poemIDs: Set<String> = ["poem.line", "compose.draft"]
 
-    /// 23 surfaces, in the order the matrix prints them. Values are the styling the
-    /// views render today.
+    /// 22 surfaces, in the order the matrix prints them. Values are the styling the
+    /// views render today (the keepsake kind line left with Phase 6 D-05).
     static let inventory: [Surface] = [
         Surface(id: "threshold.title", role: .ink, opacity: 1.0, size: .large, placement: .sky, depth: 0, backing: .skyFlag),
         Surface(id: "threshold.tagline", role: .secondary, opacity: 1.0, size: .normal, placement: .sky, depth: 0, backing: .skyFlag),
@@ -234,7 +234,6 @@ struct ContrastTests {
         Surface(id: "waiting.botLine", role: .secondary, opacity: 1.0, size: .normal, placement: .sky, depth: 0, backing: .skyFlag),
         Surface(id: "dissolved.keepsakeLead", role: .secondary, opacity: 1.0, size: .normal, placement: .sky, depth: 1.0, backing: .skyFlag),
         Surface(id: "dissolved.keepsakeName", role: .ink, opacity: 1.0, size: .large, placement: .sky, depth: 1.0, backing: .skyFlag),
-        Surface(id: "dissolved.keepsakeKind", role: .secondary, opacity: 1.0, size: .normal, placement: .sky, depth: 1.0, backing: .skyFlag),
         Surface(id: "dissolved.farewell", role: .ink, opacity: 1.0, size: .normal, placement: .sky, depth: 1.0, backing: .skyFlag),
         Surface(id: "poem.line", role: .ink, opacity: 1.0, size: .large, placement: .sky, depth: 0.70, backing: .skyFlag),
         Surface(id: "compose.draft", role: .ink, opacity: 1.0, size: .large, placement: .low, depth: 0.22, backing: .always),

@@ -11,13 +11,17 @@ import Testing
 /// Xcode or iOS update may be stdlib drift and not a code regression
 /// (RESEARCH Pitfall 5). Re-capture a golden only with a cited reason in the
 /// commit and the Phase 4 ledger; never to quiet a failure.
+///
+/// 2026-11-02: Phase 6 D-05 removed the category column with `CoinedName`'s
+/// category. No name or lead value changed. This is a column removal, not a
+/// re-capture, and the stdlib-drift rule above still governs any future value
+/// change.
 struct PoemNamingTests {
     struct Golden: Sendable, CustomTestStringConvertible {
         let label: String
         let lines: [String]
         let lead: String
         let name: String
-        let kind: String
         var testDescription: String { label }
     }
 
@@ -25,18 +29,18 @@ struct PoemNamingTests {
 
     static let goldens: [Golden] = [
         Golden(label: "classic haiku", lines: classicHaiku,
-               lead: "One strange word stayed behind:", name: "Old Splash", kind: "an aged cheese"),
+               lead: "One strange word stayed behind:", name: "Old Splash"),
         Golden(label: "repeated identical lines", lines: ["moon", "moon", "moon"],
-               lead: "The poem dissolved. This is what it named:", name: "Moon No. 5", kind: "a perfume"),
+               lead: "The poem dissolved. This is what it named:", name: "Moon No. 5"),
         Golden(label: "single word (solo catalogue)", lines: ["moon"],
-               lead: "Gone — but not before it became", name: "The Moon", kind: "a sailboat"),
+               lead: "Gone — but not before it became", name: "The Moon"),
         Golden(label: "very long line", lines: [String(repeating: "lantern ", count: 40)],
-               lead: "The poem dissolved. This is what it named:", name: "Lantern", kind: "a nail polish"),
+               lead: "The poem dissolved. This is what it named:", name: "Lantern"),
         Golden(label: "unicode lines", lines: ["café naïve résumé", "über straße", "日本語 の 詩"],
-               lead: "Gone — but not before it became", name: "Straße Café", kind: "a garden rose"),
+               lead: "Gone — but not before it became", name: "Straße Café"),
         Golden(label: "lines the mock stranger can produce",
                lines: ["lanterns drift down the dark stream", "snow settles on the still pine", "frost"],
-               lead: "It's gone now — but it left a name behind.", name: "Lanterns Drift", kind: "a racehorse"),
+               lead: "It's gone now — but it left a name behind.", name: "Lanterns Drift"),
     ]
 
     /// Separate `#expect`s so a failure prints each actual value.
@@ -44,7 +48,6 @@ struct PoemNamingTests {
     func golden(_ g: Golden) throws {
         let coined = try #require(PoemNaming.coin(from: g.lines))
         #expect(coined.name == g.name)
-        #expect(coined.kind == g.kind)
         #expect(coined.lead == g.lead)
     }
 
