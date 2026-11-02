@@ -50,8 +50,8 @@ func TestPrivacyPage(t *testing.T) {
 	for _, want := range []string{
 		"strange words privacy policy",
 		"privacy@strangewords.app",
-		`datetime="2026-10-26"`,
-		"october 26, 2026",
+		`datetime="2026-10-29"`,
+		"october 29, 2026",
 	} {
 		if !strings.Contains(lower, want) {
 			t.Errorf("page missing %q", want)
@@ -130,7 +130,7 @@ func TestPrivacyPageMatchesCode(t *testing.T) {
 	for _, phrase := range []string{
 		"no accounts", "ip address", "server logs", "no cookies", "never sent to us",
 		"no analytics", "no advertising", "no tracking", "push notifications",
-		"robot poet", "outside ai service", "built-in word list", "fly.io", "upstash",
+		"robot poet", "second poem", "outside ai service", "built-in word list", "fly.io", "upstash",
 	} {
 		if !strings.Contains(body, phrase) {
 			t.Errorf("privacy.html missing required phrase %q", phrase)
