@@ -223,6 +223,11 @@ final class AppModel {
             do {
                 let updated = try await api.tradeBack(id: s.sessionId, token: token)
                 guard !isStale(e) else { return }
+                // If the reveal has already progressed (the reveal poll applied
+                // poem 2 first), this response is stale and the poll owns the
+                // state: applying it would regress the phase to poem 1's reveal
+                // and coin poem 1's keepsake a second time (WR-01).
+                guard case .reveal = phase else { return }
                 apply(updated, epoch: e)
             } catch APIError.gone, APIError.notYourTurn, APIError.wrongTurn {
                 guard !isStale(e) else { return }

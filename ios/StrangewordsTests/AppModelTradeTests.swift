@@ -238,6 +238,41 @@ struct AppModelTradeTests {
         await finish(model, rig.fake, rig.cleanup)
     }
 
+    /// A trade response landing after the reveal poll already applied poem 2 is
+    /// stale and ignored: no flicker back to poem 1's reveal, and poem 1's keepsake
+    /// is coined exactly once (WR-01).
+    @Test func staleTradeResponseAfterPoemTwoBeganIsIgnored() async throws {
+        let rig = Rig()
+        let model = rig.model
+        let revealPoll = try await Self.openReveal(rig, Self.reveal())
+
+        model.tradeBack()
+        let trade = try await rig.arrivals.next()
+        #expect(trade.kind == .tradeBack)
+
+        // The reveal poll sees poem 2 begin before our own response lands.
+        let loop = model.pollTask
+        let two = Self.poemTwo(yourTurn: false)
+        revealPoll.resolve(two)
+        await loop?.value
+        #expect(model.phase == .composing(two))
+        let sessionPoll = try await rig.arrivals.next()
+        #expect(sessionPoll.kind == .getSession)
+        let coinOne = try #require(PoemNaming.coin(from: Self.poem))
+        #expect(model.keepsakes == [coinOne])
+        let poemTwoPoll = model.pollTask
+
+        // Our delayed trade response still shows poem 1 complete with our ask.
+        trade.resolve(Self.reveal(youWantTrade: true))
+        await model.actionTask?.value
+
+        #expect(model.phase == .composing(two))
+        #expect(model.keepsakes == [coinOne])
+        #expect(model.pollTask == poemTwoPoll)
+
+        await finish(model, rig.fake, rig.cleanup)
+    }
+
     /// A transient failure leaves the reveal as it was, so the user may tap again.
     @Test func transientTradeFailureLeavesTheRevealOpen() async throws {
         let rig = Rig()
