@@ -25,11 +25,14 @@ func makeModel(backend: any Backend, defaults: UserDefaults) -> AppModel {
 /// A haiku-form session view as the server would project it for participant 0.
 func haikuView(id: String = "s1", status: String = "active", currentLine: Int = 0,
                yourTurn: Bool = true, lines: [String] = [],
-               partnerIsBot: Bool = false) -> SessionView {
+               partnerIsBot: Bool = false, poemNumber: Int = 1, tradeOpen: Bool = false,
+               youWantTrade: Bool = false, partnerWantsTrade: Bool = false) -> SessionView {
     SessionView(sessionId: id, you: 0, participantCount: 2, status: status,
                 form: FormView(id: "haiku", targets: [5, 7, 5]),
                 currentLine: currentLine, currentAuthor: yourTurn ? 0 : 1,
-                yourTurn: yourTurn, lines: lines, partnerIsBot: partnerIsBot)
+                yourTurn: yourTurn, lines: lines, partnerIsBot: partnerIsBot,
+                poemNumber: poemNumber, tradeOpen: tradeOpen,
+                youWantTrade: youWantTrade, partnerWantsTrade: partnerWantsTrade)
 }
 
 /// Thrown when the fake's arrival stream ends before a test got the call it expected.

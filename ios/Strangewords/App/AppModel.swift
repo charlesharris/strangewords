@@ -196,6 +196,24 @@ final class AppModel {
         }
     }
 
+    // Scaffold for the red commit: a naive trade action and a one-shot reveal poll.
+    func tradeBack() {
+        guard case .reveal(let s) = phase, let token = tokenStore.token else { return }
+        let e = epoch
+        actionTask = Task {
+            if let v = try? await api.tradeBack(id: s.sessionId, token: token), !isStale(e) { apply(v, epoch: e) }
+        }
+    }
+
+    private func pollReveal(id: String) {
+        let e = epoch
+        pollTask = Task { [weak self] in
+            try? await Task.sleep(for: self?.pollInterval ?? AppModel.defaultPollInterval)
+            guard let self, let token = self.tokenStore.token else { return }
+            if let s = try? await self.api.getSession(id: id, token: token), !self.isStale(e) { self.apply(s, epoch: e) }
+        }
+    }
+
     // MARK: - Compose input
 
     /// The return key: the same action as the "offer this line" button. It never
@@ -293,6 +311,7 @@ final class AppModel {
         case "complete":
             phase = .reveal(s)
             if !wasReveal { Haptics.reveal() }
+            if s.tradeOpen { pollReveal(id: s.sessionId) }
         default:
             dissolve(.ended)
         }

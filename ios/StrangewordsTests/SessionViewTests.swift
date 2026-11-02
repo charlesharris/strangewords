@@ -86,4 +86,45 @@ struct SessionViewTests {
     @Test func memberwiseDefaultsPartnerIsBotFalse() {
         #expect(session(form: Self.haiku, currentLine: 0).partnerIsBot == false)
     }
+
+    // MARK: - Trade fields (Phase 6)
+
+    /// Shaped like Go's json.Marshal of sessions.View for a poem-1 reveal this player
+    /// has offered on: `poemNumber`, `tradeOpen` and `youWantTrade` are present, and
+    /// `partnerWantsTrade` is absent because `omitempty` drops false.
+    private static let offeredRevealJSON = """
+    {"sessionId":"s-trade","you":0,"participantCount":2,"status":"complete",\
+    "form":{"id":"haiku","targets":[5,7,5]},"currentLine":3,"currentAuthor":1,\
+    "yourTurn":false,"lines":["a","b","c"],"poemNumber":1,"tradeOpen":true,\
+    "youWantTrade":true}
+    """
+
+    @Test func decodesTradeFieldsWhenPresent() throws {
+        let view = try JSONDecoder().decode(SessionView.self, from: Data(Self.offeredRevealJSON.utf8))
+        #expect(view.poemNumber == 1)
+        #expect(view.tradeOpen == true)
+        #expect(view.youWantTrade == true)
+        #expect(view.partnerWantsTrade == false)
+        #expect(view.status == "complete")
+        #expect(view.lines == ["a", "b", "c"])
+    }
+
+    /// An old server, or any view with nothing to trade, omits all four keys: poem 1
+    /// and every flag false, so the trade never appears.
+    @Test func tradeFieldsDefaultWhenAbsent() throws {
+        let view = try JSONDecoder().decode(SessionView.self, from: Data(Self.humanSessionJSON.utf8))
+        #expect(view.poemNumber == 1)
+        #expect(view.tradeOpen == false)
+        #expect(view.youWantTrade == false)
+        #expect(view.partnerWantsTrade == false)
+    }
+
+    /// Existing construction sites omit all four arguments.
+    @Test func memberwiseDefaultsTradeFields() {
+        let view = session(form: Self.haiku, currentLine: 0)
+        #expect(view.poemNumber == 1)
+        #expect(view.tradeOpen == false)
+        #expect(view.youWantTrade == false)
+        #expect(view.partnerWantsTrade == false)
+    }
 }
