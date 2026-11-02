@@ -365,6 +365,21 @@ func (s *Store) IdemGet(ctx context.Context, sid, key string) ([]byte, bool, err
 	return v, true, nil
 }
 
+// DeleteIdem erases a finished poem's cached responses. A trade back calls it
+// when the next poem begins, so the retry cache is erased with the poem
+// (privacy.html). DeleteSession still lists every key, so a failed purge is
+// caught at teardown.
+func (s *Store) DeleteIdem(ctx context.Context, sid string, keys []string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	full := make([]string, 0, len(keys))
+	for _, k := range keys {
+		full = append(full, idemKey(sid, k))
+	}
+	return s.rdb.Del(ctx, full...).Err()
+}
+
 func (s *Store) IdemSet(ctx context.Context, sid, key string, resp []byte) error {
 	return s.rdb.Set(ctx, idemKey(sid, key), resp, IdemTTL).Err()
 }

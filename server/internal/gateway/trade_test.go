@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"strangewords/internal/metrics"
@@ -69,6 +70,25 @@ func writePoem(t *testing.T, r *rig, tokens map[int]string, v sessions.View, pre
 }
 
 func sessKey(id string) string { return "sw:sess:" + id }
+
+// assertEncounterGone asserts that a human-paired encounter left nothing behind:
+// no session, token ref or cached response. The only key a human pairing may
+// still hold is the original waiter's sw:wait: record, which predates the trade,
+// is cleared only by its own WaitTTL (privacy.html: "erased after 15 minutes")
+// and carries no poem content. Bot sessions drop it at pairing, so they assert
+// the stricter assertNoKeysWithPrefix(t, mr, "sw:").
+func assertEncounterGone(t *testing.T, mr *miniredis.Miniredis) {
+	t.Helper()
+	for _, k := range mr.Keys() {
+		if strings.HasPrefix(k, "sw:wait:") {
+			if ttl := mr.TTL(k); ttl <= 0 || ttl > store.WaitTTL {
+				t.Fatalf("leftover wait record %q has TTL %v, want within (0, %v]", k, ttl, store.WaitTTL)
+			}
+			continue
+		}
+		t.Fatalf("encounter left key %q behind", k)
+	}
+}
 
 // TestTradeTracer is the Phase 6 tracer: two humans write poem 1, one offers to
 // trade back, the other's ask begins poem 2 with roles swapped and poem 1's
@@ -166,7 +186,7 @@ func TestTradeTracer(t *testing.T) {
 			t.Fatalf("after dissolution expected 410, got %d", code)
 		}
 	}
-	assertNoKeysWithPrefix(t, r.mr, "sw:")
+	assertEncounterGone(t, r.mr)
 
 	if d := testutil.ToFloat64(metrics.TradesOffered) - offered0; d != 1 {
 		t.Fatalf("TradesOffered delta = %v, want 1", d)

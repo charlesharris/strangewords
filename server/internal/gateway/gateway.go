@@ -60,6 +60,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/session/{id}/line", s.handleLine)
 	mux.HandleFunc("POST /v1/session/{id}/leave", s.handleLeave)
 	mux.HandleFunc("POST /v1/session/{id}/dismiss", s.handleDismiss)
+	mux.HandleFunc("POST /v1/session/{id}/trade", s.handleTrade)
 	mux.HandleFunc("POST /v1/session/{id}/report", s.handleReport)
 
 	var h http.Handler = limitBody(mux)
@@ -420,6 +421,71 @@ func (s *Server) handleDismiss(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, v)
 }
 
+// handleTrade is the trade-back offer and its acceptance: one endpoint, one
+// per-participant flag (Phase 6 D-02). Poem 2 begins only when every participant
+// has asked; a client that never calls it can never be pulled into a second
+// poem. The both-asked decision is made on UpdateSession's WATCHed fresh read, so
+// concurrent asks begin exactly one poem. Roles swap for the new poem (D-03)
+// inside Session.AuthorOf. The request body is never read.
+func (s *Server) handleTrade(w http.ResponseWriter, r *http.Request) {
+	sess, token, idx, ok := s.authSession(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+	now := s.now()
+	var closed, offered, began bool
+	fresh, err := s.updateSession(ctx, sess.ID, func(f *sessions.Session) (time.Duration, bool) {
+		closed, offered, began = false, false, false
+		if !f.TradeOpen() {
+			closed = true
+			return 0, false
+		}
+		if idx < 0 || idx >= len(f.Participants) {
+			closed = true
+			return 0, false
+		}
+		if f.Participants[idx].WantsTrade {
+			return 0, false // an idempotent repeat: no write, so the countdown is not extended
+		}
+		offered = !f.AnyWantsTrade()
+		f.Participants[idx].WantsTrade = true
+		f.Participants[idx].LastSeen = now.UnixMilli()
+		if f.AllWantTrade() {
+			f.BeginNextPoem()
+			if f.BotTurn() {
+				f.BotReadyAt = now.Add(s.cfg.BotThink).UnixMilli()
+			}
+			began = true
+			return store.SessionTTL, true
+		}
+		return store.RevealTTL, true // the offer ages out with the reveal
+	})
+	switch {
+	case errors.Is(err, store.ErrNotFound):
+		s.fail(w, errGone)
+		return
+	case errors.Is(err, store.ErrConflict):
+		writeErr(w, http.StatusServiceUnavailable, "busy", "the poem moved; try again")
+		return
+	case err != nil:
+		s.fail(w, err)
+		return
+	}
+	if closed {
+		writeErr(w, http.StatusConflict, "trade_closed", "this poem can no longer be traded back")
+		return
+	}
+	if offered {
+		metrics.TradesOffered.Inc()
+	}
+	if began {
+		metrics.TradesBegun.Inc()
+		s.purgePoemCache(ctx, fresh)
+	}
+	writeJSON(w, http.StatusOK, fresh.ViewFor(token))
+}
+
 // maxReasonLen caps the optional free-text reason on a report.
 const maxReasonLen = 280
 
@@ -553,6 +619,38 @@ func (s *Server) settleBot(ctx context.Context, sess *sessions.Session) (*sessio
 		}
 	}
 	return fresh, nil
+}
+
+// casAttempts is how many times a participant action re-runs its
+// compare-and-set after losing a race to a concurrent write. One attempt is the
+// store's contract, and the bound lives here.
+const casAttempts = 3
+
+// updateSession runs store.UpdateSession, retrying only on store.ErrConflict, at
+// most casAttempts attempts in total, and returns the last result. apply may run
+// more than once, so every closure passed here must reset its captured decision
+// variables at its top.
+func (s *Server) updateSession(ctx context.Context, id string, apply func(*sessions.Session) (time.Duration, bool)) (*sessions.Session, error) {
+	var (
+		fresh *sessions.Session
+		err   error
+	)
+	for i := 0; i < casAttempts; i++ {
+		fresh, err = s.st.UpdateSession(ctx, id, apply)
+		if !errors.Is(err, store.ErrConflict) {
+			break
+		}
+	}
+	return fresh, err
+}
+
+// purgePoemCache erases the finished poem's cached line responses once the next
+// poem begins. It is a non-fatal side effect: a failed purge is logged, and
+// DeleteSession still lists every key at teardown.
+func (s *Server) purgePoemCache(ctx context.Context, sess *sessions.Session) {
+	if err := s.st.DeleteIdem(ctx, sess.ID, sess.IdemKeys); err != nil {
+		s.log.Warn("poem cache purge failed", "session", sess.ID, "err", err)
+	}
 }
 
 func (s *Server) loadSession(ctx context.Context, id string) (*sessions.Session, error) {
