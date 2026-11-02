@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 05
-current_phase_name: Opt-In Robot Poet Collaboration
-status: verifying
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-10-29T20:26:52.427Z"
-last_activity: 2026-10-27
-last_activity_desc: Phase 05 execution started
-state_head: 878735def935de2c92861b2082b6dbfcdd89b2f7
+current_phase: 06
+current_phase_name: Two-Poem Trade
+status: executing
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-11-02T16:31:59.468Z"
+last_activity: 2026-11-02
+last_activity_desc: Phase 06 execution started
+state_head: b1be2066e2428a47921cbb60c2abcf9a7e94d463
 progress:
-  total_phases: 7
+  total_phases: 6
   completed_phases: 1
-  total_plans: 11
-  completed_plans: 9
-  percent: 14
+  total_plans: 14
+  completed_plans: 10
+  percent: 17
 ---
 
 Total Phases: 2
@@ -25,16 +25,16 @@ Total Phases: 2
 See: .planning/PROJECT.md (updated 2026-10-14)
 
 **Core value:** A trustworthy, automated proof that the core experience works — so every future change can be verified against a known-good baseline instead of memory and manual poking.
-**Current focus:** Phase 05 — Opt-In Robot Poet Collaboration
+**Current focus:** Phase 06 — Two-Poem Trade
 
 ## Current Position
 
-Phase: 05 (Opt-In Robot Poet Collaboration) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-10-27 — Phase 05 execution started
+Phase: 06 (Two-Poem Trade) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-11-02 — Phase 06 execution started
 
-Progress: [█░░░░░░░░░] 14%
+Progress: [██░░░░░░░░] 17%
 
 ## Performance Metrics
 
@@ -67,6 +67,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 05 P01 | 14 min | 3 tasks | 9 files |
 | Phase 05 P02 | 16 min | 2 tasks | 12 files |
 | Phase 05 P03 | 20 min | 1 tasks | 7 files |
+| Phase 06 P01 | 7 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,8 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-02: begin() captures AppModel.allowBot before spawning its task; Backend.enter has no overload omitting allowBot
 - [Phase 05]: 05-02: LocalBackend opted-in users always wait the full botWindow (mock has no human pool to race); recorded as DRIFT
 - [Phase 05]: 05-03: their-turn secondary line stays locked UI-SPEC copy; voice-rule test checks the robot poet is named on the primary line
+- [Phase 06]: 06-01: trade is one endpoint and one WantsTrade flag; role swap derives from PoemCount in AuthorOf (StartIndex untouched); no poems[] collection — Keeps the encounter/poem split, finished poems never persist, zero new sw: key classes
+- [Phase 06]: 06-01 DEC-06-01: dismiss runs on the CAS; a dismiss on an active poem 2 dissolves, an active poem 1 keeps flag-only all-must-dismiss — A stale plain write could revert poem 2; declining dissolves per D-02
 
 ### Pending Todos
 
@@ -141,6 +144,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-27
-Stopped at: Phase 5 executed (3/3 plans), all gates passed (security 17/17, UI 17/24 advisory, code review 0C/2W/6I, verifier 17/17 must-haves). Status human_needed — manual UAT in 05-UAT.md (run /gsd-verify-work 5). Server deployed to api.strangewords.app; TestFlight build 0.1.0 (202610272330) uploaded (a stray "1.0" build from a version-wiring bug, fixed in 43c4cd5, should be expired in ASC). App renamed "Strange Words" (ASC rename + external beta group are user-side steps).
+Last session: 2026-11-02T16:31:59.287Z
+Stopped at: Completed 06-01-PLAN.md
 Resume file: None
