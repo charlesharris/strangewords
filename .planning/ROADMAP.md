@@ -143,7 +143,7 @@ Plans:
 **Goal:** An encounter can become a two-poem trade. After poem 1's reveal, either participant may offer to trade back; when both accept, poem 2 begins in the same session with the start roles swapped (the other participant writes lines 1 and 3). Reveal happens after each poem; declining or leaving dissolves as today. The robot poet trades too: it accepts automatically and continues its deterministic replay. Keepsakes become one coined name per poem, and the keepsake's kind line ("a scented candle") is removed everywhere. LocalBackend mirrors the full trade arc; tests on both sides.
 **Requirements**: P6-TRADE, P6-ROLES, P6-BOT, P6-KEEPSAKE, P6-ANON, P6-COMPAT, P6-PARITY, P6-UI, P6-TESTS
 **Depends on:** Phase 5
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans executed
 
 Plans are chained one per wave: the server contract first, then its iOS mirror, then the UI that renders it. The iOS plans prove themselves through `scripts/test-ios.sh`, which drives one pinned simulator and has no concurrent-run lock. Both iOS plans execute only after quick batch 261029-l7j has merged.
 
@@ -155,4 +155,4 @@ Plans:
 - [x] 06-02-PLAN.md — iOS wire and model. Tolerant SessionView trade fields, and Backend.tradeBack in APIClient, LocalBackend (the full mock trade arc with roles swapped) and FakeBackend. AppModel gains tradeBack() and a reveal poll that runs only while the server says tradeOpen, and release() is hardened red-first against late reveal writers
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 06-03-PLAN.md — iOS UI and keepsakes. A "trade back" affordance beside "let it go", with copy pinned by TradeBackTests and the Phase 5 voice rule. The keepsake category is removed everywhere, and the goldens lose a column with every name unchanged. One keepsake per completed poem: poem 1's is coined as poem 2 begins
+- [x] 06-03-PLAN.md — iOS UI and keepsakes. A "trade back" affordance beside "let it go", with copy pinned by TradeBackTests and the Phase 5 voice rule. The keepsake category is removed everywhere, and the goldens lose a column with every name unchanged. One keepsake per completed poem: poem 1's is coined as poem 2 begins

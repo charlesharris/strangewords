@@ -55,12 +55,12 @@ Added with Phase 6 (Two-Poem Trade). Each ID traces to the locked decisions D-01
 - [x] **P6-TRADE**: After poem 1's reveal either participant may offer to trade back (`POST /v1/session/{id}/trade`), and poem 2 begins in the same session only when every participant has asked. Each poem gets its own reveal, an encounter holds at most two poems, and declining (letting go), leaving or letting the reveal lapse dissolves exactly as today; an unanswered offer ages out with the existing RevealTTL, with no new timer (D-01, D-02)
 - [x] **P6-ROLES**: Poem 2's roles swap: whoever wrote lines 1 and 3 of poem 1 writes line 2 of poem 2. The swap is derived from the encounter's `StartIndex` plus the poem ordinal (`PoemCount`) in `Session.AuthorOf`, never a policy change (D-03)
 - [x] **P6-BOT**: The robot poet accepts a trade offer on its own, only after its think time (never on the immediate poll), and writes poem 2 from a deterministic replay seeded by the session id and poem number, so a server restart mid-trade changes nothing (D-06)
-- [ ] **P6-KEEPSAKE**: The on-device coiner runs once per completed poem (two names after a full trade, poem 1's coined while its lines are still in hand as poem 2 begins), and `CoinedName.kind` and its line on the Dissolved screen are removed everywhere, for single poems too. Nothing new leaves the device (D-04, D-05)
+- [x] **P6-KEEPSAKE**: The on-device coiner runs once per completed poem (two names after a full trade, poem 1's coined while its lines are still in hand as poem 2 begins), and `CoinedName.kind` and its line on the Dissolved screen are removed everywhere, for single poems too. Nothing new leaves the device (D-04, D-05)
 - [x] **P6-ANON**: The anonymity model holds. All trade state is TTL-bound inside the existing session blob, no new identifier or `sw:` key class is added, poem 1's lines and retry cache are erased when poem 2 begins, the encounter stays bounded by the token refs' `SessionTTL`, and zero `sw:` keys remain after dissolution (the CONTEXT anonymity default)
 - [x] **P6-COMPAT**: Wire changes are tolerant both ways. New `View` fields are `omitempty` and decoded leniently on iOS, an old client that never calls `/trade` dissolves as today (no one is ever pulled into a second poem), and a new client facing an old server never shows the trade (the CONTEXT wire-tolerance default)
 - [x] **P6-PARITY**: The trade is mirrored in `Models.swift`, the `Backend` protocol, `APIClient`, `LocalBackend` and the test `FakeBackend`, so mock mode walks the full arc: offer, acceptance, poem 2 with roles swapped, its own reveal, dissolution (the CONTEXT parity constraint)
-- [ ] **P6-UI**: The Reveal screen offers a quiet "trade back" beside "let it go" in the app's ritual voice, shown only when the server says the trade is open, with a caption while an offer waits or after it passes. Every string is a pure function pinned by tests, and robot-poet copy names the robot poet (orchestrator default; Phase 5 voice rule)
-- [ ] **P6-TESTS**: Every behavior above ships with automated proof on both sides: Go tests under `go test ./...` (race-sensitive paths also under `-race`) and Swift Testing suites under `scripts/test-ios.sh`, with no wall-clock sleeps (the CONTEXT tests-on-both-sides constraint)
+- [x] **P6-UI**: The Reveal screen offers a quiet "trade back" beside "let it go" in the app's ritual voice, shown only when the server says the trade is open, with a caption while an offer waits or after it passes. Every string is a pure function pinned by tests, and robot-poet copy names the robot poet (orchestrator default; Phase 5 voice rule)
+- [x] **P6-TESTS**: Every behavior above ships with automated proof on both sides: Go tests under `go test ./...` (race-sensitive paths also under `-race`) and Swift Testing suites under `scripts/test-ios.sh`, with no wall-clock sleeps (the CONTEXT tests-on-both-sides constraint)
 
 ## v2 Requirements
 
@@ -129,12 +129,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | P6-TRADE | Phase 6 | Complete |
 | P6-ROLES | Phase 6 | Complete |
 | P6-BOT | Phase 6 | Complete |
-| P6-KEEPSAKE | Phase 6 | Pending |
+| P6-KEEPSAKE | Phase 6 | Complete |
 | P6-ANON | Phase 6 | Complete |
 | P6-COMPAT | Phase 6 | Complete |
 | P6-PARITY | Phase 6 | Complete |
-| P6-UI | Phase 6 | Pending |
-| P6-TESTS | Phase 6 | Pending |
+| P6-UI | Phase 6 | Complete |
+| P6-TESTS | Phase 6 | Complete |
 
 **Coverage:**
 - v1 requirements: 30 total (14 baseline + 7 Phase 5 + 9 Phase 6)
