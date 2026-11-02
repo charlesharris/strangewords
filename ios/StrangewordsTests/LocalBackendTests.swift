@@ -378,4 +378,162 @@ struct LocalBackendTests {
             try await backend.getSession(id: "local-poem", token: "local")
         }
     }
+
+    // MARK: - The two-poem trade (Phase 6)
+
+    /// A started mock whose poem 1 is complete through your own last submit, with no
+    /// getSession at the reveal: the stranger has not yet had a chance to offer.
+    private static func completedPoemOne(_ backend: LocalBackend) async throws -> SessionView {
+        _ = try await Self.submit(backend, line: 0, "an old silent pond")
+        _ = try await backend.getSession(id: "local-poem", token: "local") // the stranger's line 1
+        return try await Self.submit(backend, line: 2, "splash silence again")
+    }
+
+    /// Mirrors TestTradeTracer (server/internal/gateway/trade_test.go): poem 1 completes,
+    /// the stranger offers, trading back begins poem 2 with the roles swapped (the
+    /// stranger opens and closes), poem 2 reveals with no further trade, and dissolution
+    /// leaves nothing. The stranger's lines for the 5-syllable slots are really 5.
+    @Test func tradeBackSwapsRolesIntoPoemTwo() async throws {
+        let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero)
+        _ = try await backend.enter(pushToken: nil, allowBot: false)
+
+        let complete = try await Self.completedPoemOne(backend)
+        #expect(complete.status == "complete")
+        #expect(complete.poemNumber == 1)
+        #expect(complete.tradeOpen)
+        #expect(!complete.partnerWantsTrade)
+
+        let offered = try await backend.getSession(id: "local-poem", token: "local")
+        #expect(offered.partnerWantsTrade)
+        #expect(offered.tradeOpen)
+
+        let poemTwo = try await backend.tradeBack(id: "local-poem", token: "local")
+        #expect(poemTwo.status == "active")
+        #expect(poemTwo.poemNumber == 2)
+        #expect(poemTwo.currentLine == 0)
+        #expect(poemTwo.currentAuthor == 1)
+        #expect(!poemTwo.yourTurn)
+        #expect(poemTwo.lines.isEmpty)
+        #expect(!poemTwo.tradeOpen)
+
+        let afterOpen = try await backend.getSession(id: "local-poem", token: "local")
+        #expect(afterOpen.lines.count == 1)
+        #expect(Syllables.count(afterOpen.lines[0]) == 5)
+        #expect(afterOpen.yourTurn)
+
+        _ = try await Self.submit(backend, line: 1, "the moon hangs over the field", key: "p2")
+        let closed = try await backend.getSession(id: "local-poem", token: "local")
+        #expect(closed.status == "complete")
+        #expect(closed.lines.count == 3)
+        #expect(Syllables.count(closed.lines[2]) == 5)
+        #expect(closed.poemNumber == 2)
+        #expect(!closed.tradeOpen)
+
+        await #expect(throws: APIError.wrongTurn) {
+            try await backend.tradeBack(id: "local-poem", token: "local")
+        }
+
+        await backend.dismiss(id: "local-poem", token: "local")
+        await #expect(throws: APIError.gone) {
+            try await backend.getSession(id: "local-poem", token: "local")
+        }
+    }
+
+    /// Mirrors TestTradeTracer (server/internal/gateway/trade_test.go), the "ask first"
+    /// ordering: your offer waits for the stranger, and the next poll shows poem 2.
+    @Test func yourOfferIsAcceptedOnTheNextPoll() async throws {
+        let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero)
+        _ = try await backend.enter(pushToken: nil, allowBot: false)
+        let complete = try await Self.completedPoemOne(backend)
+        #expect(complete.tradeOpen)
+
+        let offered = try await backend.tradeBack(id: "local-poem", token: "local")
+        #expect(offered.status == "complete")
+        #expect(offered.youWantTrade)
+        #expect(!offered.partnerWantsTrade)
+
+        let next = try await backend.getSession(id: "local-poem", token: "local")
+        #expect(next.status == "active")
+        #expect(next.poemNumber == 2)
+    }
+
+    /// Mirrors TestBotTradesBack (server/internal/gateway/trade_test.go): the robot poet
+    /// accepts after its think time but never offers. The session stays a robot-poet one.
+    @Test func robotPoetAcceptsButNeverOffers() async throws {
+        let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero, botWindow: 0)
+        _ = try await backend.enter(pushToken: nil, allowBot: true)
+        let matched = try await backend.waiting(token: "local")
+        #expect(matched.session?.partnerIsBot == true)
+
+        let complete = try await Self.completedPoemOne(backend)
+        #expect(complete.tradeOpen)
+        for _ in 0..<2 {
+            let idle = try await backend.getSession(id: "local-poem", token: "local")
+            #expect(!idle.partnerWantsTrade)
+            #expect(idle.tradeOpen)
+        }
+
+        let offered = try await backend.tradeBack(id: "local-poem", token: "local")
+        #expect(offered.status == "complete")
+        #expect(offered.youWantTrade)
+
+        let next = try await backend.getSession(id: "local-poem", token: "local")
+        #expect(next.status == "active")
+        #expect(next.poemNumber == 2)
+        #expect(next.partnerIsBot)
+    }
+
+    /// Mirrors TestTradeErrors (server/internal/gateway/trade_test.go): outside an open
+    /// trade the server answers 409 trade_closed, which maps to wrongTurn; a dissolved
+    /// poem is gone.
+    @Test func tradeBackOutsideAnOpenTradeIsRejected() async throws {
+        let backend = LocalBackend(strangerThinkTime: 3600, enterDelay: .zero)
+        _ = try await backend.enter(pushToken: nil, allowBot: false)
+
+        await #expect(throws: APIError.wrongTurn) {
+            try await backend.tradeBack(id: "local-poem", token: "local")
+        }
+
+        await backend.dismiss(id: "local-poem", token: "local")
+        await #expect(throws: APIError.gone) {
+            try await backend.tradeBack(id: "local-poem", token: "local")
+        }
+    }
+
+    /// Mirrors TestTradeRepeatIsIdempotent (server/internal/gateway/trade_test.go): asking
+    /// twice before the stranger answers changes nothing and never reaches a third poem.
+    @Test func repeatTradeBackIsIdempotent() async throws {
+        let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero)
+        _ = try await backend.enter(pushToken: nil, allowBot: false)
+        _ = try await Self.completedPoemOne(backend)
+
+        let first = try await backend.tradeBack(id: "local-poem", token: "local")
+        let second = try await backend.tradeBack(id: "local-poem", token: "local")
+        #expect(first.status == "complete")
+        #expect(second.status == "complete")
+        #expect(second.youWantTrade)
+
+        let next = try await backend.getSession(id: "local-poem", token: "local")
+        #expect(next.poemNumber == 2)
+    }
+
+    /// Mirrors TestTradeTracer (server/internal/gateway/trade_test.go), the fresh-encounter
+    /// half: the next enter is poem 1 with every trade flag clear and the usual opener.
+    @Test func enterAfterATradeStartsFreshAtPoemOne() async throws {
+        let backend = LocalBackend(strangerThinkTime: 0, enterDelay: .zero)
+        _ = try await backend.enter(pushToken: nil, allowBot: false)
+        _ = try await Self.completedPoemOne(backend)
+        _ = try await backend.getSession(id: "local-poem", token: "local")
+        let poemTwo = try await backend.tradeBack(id: "local-poem", token: "local")
+        #expect(poemTwo.poemNumber == 2)
+
+        await backend.leave(id: "local-poem", token: "local")
+        let fresh = try #require(try await backend.enter(pushToken: nil, allowBot: false).session)
+        #expect(fresh.poemNumber == 1)
+        #expect(!fresh.tradeOpen)
+        #expect(!fresh.youWantTrade)
+        #expect(!fresh.partnerWantsTrade)
+        #expect(fresh.currentAuthor == 0)
+        #expect(fresh.yourTurn)
+    }
 }

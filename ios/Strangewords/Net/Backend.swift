@@ -24,4 +24,12 @@ protocol Backend: Sendable {
     /// waiter within `StaleWaiterAfter`. An older server 404s it, which is ignored.
     func leaveWait(token: String) async
     func dismiss(id: String, token: String) async
+    /// Offers, or accepts the partner's offer, to write a second poem after a poem's
+    /// reveal (Phase 6 D-02). Returns the updated view: still complete with
+    /// `youWantTrade` while the partner considers, or the next poem (status active)
+    /// once both have asked. A closed trade throws `APIError.wrongTurn` (the server's
+    /// 409 `trade_closed`). The app calls it only when the server's view says
+    /// `tradeOpen`, which an older server never sends; an older server would 404 it
+    /// (`APIError.http(404)`). There is deliberately no overload that omits arguments.
+    func tradeBack(id: String, token: String) async throws -> SessionView
 }

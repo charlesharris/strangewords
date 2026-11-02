@@ -147,6 +147,10 @@ actor LocalBackend: Backend {
         return view()
     }
 
+    func tradeBack(id: String, token: String) async throws -> SessionView {
+        throw APIError.wrongTurn // scaffold for the red commit; the arc lands next
+    }
+
     func leave(id: String, token: String) async { dissolve() }
     func leaveWait(token: String) async { dissolve() }
     func dismiss(id: String, token: String) async { dissolve() }

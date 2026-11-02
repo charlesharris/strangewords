@@ -3,7 +3,7 @@ import Testing
 @testable import Strangewords
 
 /// A gated `Backend` test double (Phase 2 D-05). Every `enter`, `waiting`,
-/// `getSession` and `submitLine` call is recorded, then parked on a continuation
+/// `getSession`, `submitLine` and `tradeBack` call is recorded, then parked on a continuation
 /// until the test resolves or fails it, so the test owns exactly when each
 /// response lands. `leave`, `leaveWait` and `dismiss` are recorded and return at
 /// once, since `AppModel` fires them and nothing waits on their result.
@@ -18,7 +18,7 @@ import Testing
 /// plan 02-02's stale-writer tests reproduce.
 actor FakeBackend: Backend {
     enum Kind: Equatable, Sendable {
-        case enter, waiting, getSession, submitLine, leave, leaveWait, dismiss
+        case enter, waiting, getSession, submitLine, tradeBack, leave, leaveWait, dismiss
     }
 
     /// One parked call. Resolve or fail it exactly once; a second attempt records
@@ -120,6 +120,11 @@ actor FakeBackend: Backend {
     func submitLine(id: String, token: String, line: Int, text: String, idemKey: String) async throws -> SessionView {
         let value = try await park(.submitLine, id: id, token: token, line: line, text: text, idemKey: idemKey)
         return try cast(value, to: SessionView.self, for: .submitLine)
+    }
+
+    func tradeBack(id: String, token: String) async throws -> SessionView {
+        let value = try await park(.tradeBack, id: id, token: token)
+        return try cast(value, to: SessionView.self, for: .tradeBack)
     }
 
     func leave(id: String, token: String) async {

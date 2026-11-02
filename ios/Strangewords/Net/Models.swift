@@ -16,6 +16,19 @@ struct SessionView: Codable, Equatable {
     /// so the memberwise initializer keeps compiling at every existing call site.
     var partnerIsBot: Bool = false
 
+    /// Phase 6 trade back. The server computes these in `Session.ViewFor` and omits
+    /// zero or false values (Go `omitempty`); an older server sends none of them, so
+    /// the trade never appears (fail-safe). Nothing on the client infers them. Each
+    /// is declared with a default so every memberwise call site compiles unchanged.
+    /// Which poem of the encounter this is, from 1.
+    var poemNumber: Int = 1
+    /// A second poem can be asked for right now: this poem is complete and a later one exists.
+    var tradeOpen: Bool = false
+    /// You have offered (or accepted) and are waiting on the partner.
+    var youWantTrade: Bool = false
+    /// The partner has offered (or accepted).
+    var partnerWantsTrade: Bool = false
+
     var isActive: Bool { status == "active" }
     var isComplete: Bool { status == "complete" }
 
@@ -32,12 +45,14 @@ extension SessionView {
     enum CodingKeys: String, CodingKey {
         case sessionId, you, participantCount, status, form
         case currentLine, currentAuthor, yourTurn, lines, partnerIsBot
+        case poemNumber, tradeOpen, youWantTrade, partnerWantsTrade
     }
 
     /// Tolerant decode: the server omits `partnerIsBot` when false (human sessions,
     /// and old servers), which plain synthesized Codable would reject with
     /// keyNotFound. The disclosure is derived only by the server
-    /// (`Session.ViewFor`) and is never computed on the client (Phase 5 D-04).
+    /// (`Session.ViewFor`) and is never computed on the client (Phase 5 D-04). The
+    /// four trade fields (Phase 6) follow the same rule: absent means 1 or false.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         sessionId = try c.decode(String.self, forKey: .sessionId)
@@ -50,6 +65,10 @@ extension SessionView {
         yourTurn = try c.decode(Bool.self, forKey: .yourTurn)
         lines = try c.decode([String].self, forKey: .lines)
         partnerIsBot = try c.decodeIfPresent(Bool.self, forKey: .partnerIsBot) ?? false
+        poemNumber = try c.decodeIfPresent(Int.self, forKey: .poemNumber) ?? 1
+        tradeOpen = try c.decodeIfPresent(Bool.self, forKey: .tradeOpen) ?? false
+        youWantTrade = try c.decodeIfPresent(Bool.self, forKey: .youWantTrade) ?? false
+        partnerWantsTrade = try c.decodeIfPresent(Bool.self, forKey: .partnerWantsTrade) ?? false
     }
 }
 

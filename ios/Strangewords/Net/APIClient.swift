@@ -81,6 +81,12 @@ actor APIClient: Backend {
         return try decode(SessionView.self, data)
     }
 
+    func tradeBack(id: String, token: String) async throws -> SessionView {
+        let (data, status) = try await send("POST", "/v1/session/\(id)/trade", token: token, json: [:])
+        guard status == 200 else { throw mapError(status, data) }
+        return try decode(SessionView.self, data)
+    }
+
     func leave(id: String, token: String) async {
         _ = try? await send("POST", "/v1/session/\(id)/leave", token: token, json: [:])
     }
