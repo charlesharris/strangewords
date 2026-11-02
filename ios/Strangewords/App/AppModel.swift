@@ -196,21 +196,27 @@ final class AppModel {
         }
     }
 
-    // Scaffold for the red commit: a naive trade action and a one-shot reveal poll.
+    /// Offer, or accept the partner's offer, to write a second poem (Phase 6 D-02).
+    /// It acts only on a reveal whose server view says `tradeOpen` and on which this
+    /// player has not already asked; an older server never sends `tradeOpen`, so it
+    /// never fires there. A trade transition stays inside the current epoch, because
+    /// it is the same session and the same token. No haptic here: the view plays it,
+    /// as with "let it go".
     func tradeBack() {
-        guard case .reveal(let s) = phase, let token = tokenStore.token else { return }
+        guard case .reveal(let s) = phase, s.tradeOpen, !s.youWantTrade,
+              let token = tokenStore.token else { return }
         let e = epoch
         actionTask = Task {
-            if let v = try? await api.tradeBack(id: s.sessionId, token: token), !isStale(e) { apply(v, epoch: e) }
-        }
-    }
-
-    private func pollReveal(id: String) {
-        let e = epoch
-        pollTask = Task { [weak self] in
-            try? await Task.sleep(for: self?.pollInterval ?? AppModel.defaultPollInterval)
-            guard let self, let token = self.tokenStore.token else { return }
-            if let s = try? await self.api.getSession(id: id, token: token), !self.isStale(e) { self.apply(s, epoch: e) }
+            do {
+                let updated = try await api.tradeBack(id: s.sessionId, token: token)
+                guard !isStale(e) else { return }
+                apply(updated, epoch: e)
+            } catch APIError.gone, APIError.notYourTurn, APIError.wrongTurn {
+                guard !isStale(e) else { return }
+                closeTrade(asked: true)
+            } catch {
+                // Transient: leave the reveal as it is so the user may tap again.
+            }
         }
     }
 
@@ -321,6 +327,18 @@ final class AppModel {
         if let s = try? await api.getSession(id: id, token: token) { apply(s, epoch: e) }
     }
 
+    /// The trade has passed (declined, closed or lapsed). The reveal stays and the
+    /// user lets the poem go as today (D-02); only the offer disappears.
+    private func closeTrade(asked: Bool) {
+        if case .reveal(let s) = phase {
+            var closed = s
+            closed.tradeOpen = false
+            if asked { closed.youWantTrade = true }
+            phase = .reveal(closed)
+        }
+        stopPolling()
+    }
+
     private func dissolve(_ reason: Reason) {
         epoch += 1
         stopPolling()
@@ -346,6 +364,34 @@ final class AppModel {
                     self.dissolve(.noOneCame); return
                 } catch {
                     // transient; keep waiting
+                }
+            }
+        }
+    }
+
+    /// Follows the partner's answer at an open reveal. It runs only while the server's
+    /// own view says `tradeOpen` (see `apply`), and ends on poem 2's start, a closed
+    /// trade, a 410, or any later `stopPolling`.
+    private func pollReveal(id: String) {
+        let e = epoch
+        pollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: self?.pollInterval ?? AppModel.defaultPollInterval)
+                guard let self, let token = self.tokenStore.token else { return }
+                do {
+                    let s = try await self.api.getSession(id: id, token: token)
+                    guard !self.isStale(e) else { return }
+                    if s.isComplete && s.tradeOpen {
+                        if self.phase != .reveal(s) { self.phase = .reveal(s) }
+                        continue
+                    }
+                    // Poem 2 begun, or the trade closed: apply routes both.
+                    self.apply(s, epoch: e); return
+                } catch APIError.gone {
+                    guard !self.isStale(e) else { return }
+                    self.closeTrade(asked: false); return
+                } catch {
+                    // transient; keep polling
                 }
             }
         }
