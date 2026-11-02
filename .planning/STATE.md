@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Two-Poem Trade
 status: executing
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-11-02T16:31:59.468Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-11-02T17:37:15.527Z"
 last_activity: 2026-11-02
 last_activity_desc: Phase 06 execution started
-state_head: b1be2066e2428a47921cbb60c2abcf9a7e94d463
+state_head: 7eb87bc8c4c6a3936f3217a96d423ce359b36eb8
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 14
-  completed_plans: 10
+  completed_plans: 11
   percent: 17
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-14)
 ## Current Position
 
 Phase: 06 (Two-Poem Trade) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-11-02 — Phase 06 execution started
 
@@ -68,6 +68,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 05 P02 | 16 min | 2 tasks | 12 files |
 | Phase 05 P03 | 20 min | 1 tasks | 7 files |
 | Phase 06 P01 | 7 min | 3 tasks | 10 files |
+| Phase 06 P02 | 63 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -98,6 +99,10 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-03: their-turn secondary line stays locked UI-SPEC copy; voice-rule test checks the robot poet is named on the primary line
 - [Phase 06]: 06-01: trade is one endpoint and one WantsTrade flag; role swap derives from PoemCount in AuthorOf (StartIndex untouched); no poems[] collection — Keeps the encounter/poem split, finished poems never persist, zero new sw: key classes
 - [Phase 06]: 06-01 DEC-06-01: dismiss runs on the CAS; a dismiss on an active poem 2 dissolves, an active poem 1 keeps flag-only all-must-dismiss — A stale plain write could revert poem 2; declining dissolves per D-02
+- [Phase 06]: tradeBack returns the updated SessionView and throws; 409 trade_closed reuses APIError.wrongTurn
+- [Phase 06]: A 410 at the reveal closes the trade but keeps the poem on screen; let it go dissolves as today
+- [Phase 06]: release() bumps the epoch and stops polling so late reveal writers are stale
+- [Phase 06]: Mock human stranger always offers at poem 1's reveal after its think time (recorded as DRIFT)
 
 ### Pending Todos
 
@@ -144,6 +149,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-02T16:31:59.287Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-11-02T17:37:15.348Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None

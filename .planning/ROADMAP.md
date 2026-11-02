@@ -143,7 +143,7 @@ Plans:
 **Goal:** An encounter can become a two-poem trade. After poem 1's reveal, either participant may offer to trade back; when both accept, poem 2 begins in the same session with the start roles swapped (the other participant writes lines 1 and 3). Reveal happens after each poem; declining or leaving dissolves as today. The robot poet trades too: it accepts automatically and continues its deterministic replay. Keepsakes become one coined name per poem, and the keepsake's kind line ("a scented candle") is removed everywhere. LocalBackend mirrors the full trade arc; tests on both sides.
 **Requirements**: P6-TRADE, P6-ROLES, P6-BOT, P6-KEEPSAKE, P6-ANON, P6-COMPAT, P6-PARITY, P6-UI, P6-TESTS
 **Depends on:** Phase 5
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans are chained one per wave: the server contract first, then its iOS mirror, then the UI that renders it. The iOS plans prove themselves through `scripts/test-ios.sh`, which drives one pinned simulator and has no concurrent-run lock. Both iOS plans execute only after quick batch 261029-l7j has merged.
 
@@ -152,7 +152,7 @@ Plans:
 - [x] 06-01-PLAN.md — Server trade. Tracer: two humans call POST /v1/session/{id}/trade, and the second asker begins poem 2 in the same session. Roles swap through a PoemCount offset in AuthorOf, poem 1's lines and retry cache are erased, poem 2 gets its own reveal with no further trade, and dissolution leaves zero sw: keys. Also: the robot poet accepts after BotThink and writes poem 2 from a per-poem seeded replay; dismiss moves onto the WATCH/MULTI compare-and-set; race, decline and old-client tests; and the privacy page bullet
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 06-02-PLAN.md — iOS wire and model. Tolerant SessionView trade fields, and Backend.tradeBack in APIClient, LocalBackend (the full mock trade arc with roles swapped) and FakeBackend. AppModel gains tradeBack() and a reveal poll that runs only while the server says tradeOpen, and release() is hardened red-first against late reveal writers
+- [x] 06-02-PLAN.md — iOS wire and model. Tolerant SessionView trade fields, and Backend.tradeBack in APIClient, LocalBackend (the full mock trade arc with roles swapped) and FakeBackend. AppModel gains tradeBack() and a reveal poll that runs only while the server says tradeOpen, and release() is hardened red-first against late reveal writers
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 06-03-PLAN.md — iOS UI and keepsakes. A "trade back" affordance beside "let it go", with copy pinned by TradeBackTests and the Phase 5 voice rule. The keepsake category is removed everywhere, and the goldens lose a column with every name unchanged. One keepsake per completed poem: poem 1's is coined as poem 2 begins
