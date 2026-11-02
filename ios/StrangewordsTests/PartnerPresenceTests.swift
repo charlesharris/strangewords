@@ -87,8 +87,9 @@ struct PartnerPresenceTests {
 
     // MARK: - Voice rule (T-05-13)
 
-    /// Every robot-poet string in the UI. The settings title is the one string
-    /// that does not name the robot poet.
+    /// Every robot-poet string in the UI, including the Phase 6 trade-back
+    /// captions and hints. The settings title is the one string that does not
+    /// name the robot poet.
     private var robotStrings: [String] {
         let turn = PartnerPresence.theirTurn(partnerIsBot: true)
         return [
@@ -101,6 +102,11 @@ struct PartnerPresenceTests {
             PartnerPresence.arrivalAnnouncement,
             SettingsView.toggleTitle,
             SettingsView.helperText,
+            TradeBack.caption(.accept, partnerIsBot: true),
+            TradeBack.caption(.waiting, partnerIsBot: true),
+            TradeBack.caption(.passed, partnerIsBot: true),
+            TradeBack.buttonHint(.offer, partnerIsBot: true),
+            TradeBack.buttonHint(.accept, partnerIsBot: true),
         ].compactMap { $0 }
     }
 
@@ -134,6 +140,11 @@ struct PartnerPresenceTests {
             turn.primary, turn.secondary, turn.accessibility,
             PartnerPresence.accessibilityText,
             PartnerPresence.arrivalAnnouncement,
+            TradeBack.caption(.accept, partnerIsBot: true),
+            TradeBack.caption(.waiting, partnerIsBot: true),
+            TradeBack.caption(.passed, partnerIsBot: true),
+            TradeBack.buttonHint(.offer, partnerIsBot: true),
+            TradeBack.buttonHint(.accept, partnerIsBot: true),
         ].compactMap { $0 }
         for s in botCopy {
             let w = words(s)
