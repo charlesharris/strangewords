@@ -70,8 +70,10 @@ final class AppModel {
     /// The in-flight action task (begin, resume, submit, release, leave). It gives
     /// tests a deterministic sync point (Phase 2 D-07); views never read it.
     @ObservationIgnored private(set) var actionTask: Task<Void, Never>?
-    /// A session generation. `begin`, `reset` and `dissolve` bump it; any writer that
-    /// captured an older value is stale and must not touch state or identity (D-08).
+    /// A session generation. `begin`, `reset`, `dissolve` and `release` bump it; any
+    /// writer that captured an older value is stale and must not touch state or
+    /// identity (D-08). Letting the poem go ends the generation for every in-flight
+    /// reveal writer, the reveal poll and a trade response alike (Phase 6).
     /// Compared for equality only, never ordered.
     @ObservationIgnored private var epoch = 0
 
@@ -243,6 +245,8 @@ final class AppModel {
     /// dissolution effect. The effect calls `finishDissolving()` when it ends.
     func release() {
         guard case .reveal(let s) = phase else { return }
+        epoch += 1
+        stopPolling()
         if let token = tokenStore.token {
             actionTask = Task { await api.dismiss(id: s.sessionId, token: token) }
         }
