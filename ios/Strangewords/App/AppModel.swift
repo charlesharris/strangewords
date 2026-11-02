@@ -156,6 +156,14 @@ final class AppModel {
 
     // MARK: - Actions
 
+    /// True when a line can be offered right now: your turn in Compose, nothing in
+    /// flight, and the draft not blank. The offer button and the return key share
+    /// this one gate.
+    var canSubmit: Bool {
+        guard case .composing(let s) = phase, s.yourTurn else { return false }
+        return !submitting && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     func submit() {
         guard case .composing(let s) = phase, s.yourTurn, let token = tokenStore.token else { return }
         let text = draft
@@ -186,6 +194,25 @@ final class AppModel {
                 submitError = "Something slipped. Try once more."
             }
         }
+    }
+
+    // MARK: - Compose input
+
+    /// The return key: the same action as the "offer this line" button. It never
+    /// touches `draft`, and it is safe to call twice for one press, because
+    /// `submit()` sets `submitting` synchronously and `canSubmit` then refuses.
+    func returnKeyPressed() {
+        if canSubmit { submit() }
+    }
+
+    /// ComposeView's single input path (quick-261029-l7l). A vertical TextField
+    /// inserts return as a line break, so every draft change lands here: line
+    /// breaks never stay in the draft, and a lone inserted break offers the line.
+    func draftChanged(from old: String, to new: String) {
+        let edit = DraftInput.edit(from: old, to: new)
+        // Write first: submit() captures `draft`, so the cleaned text must be in place.
+        if draft != edit.draft { draft = edit.draft }
+        if edit.returnPressed { returnKeyPressed() }
     }
 
     /// Tap "let it go": tell the server we're done and start the (full-screen)

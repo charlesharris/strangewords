@@ -63,7 +63,11 @@ struct ComposeView: View {
                 .foregroundStyle(palette.ink)
                 .multilineTextAlignment(.center)
                 .focused($focused)
-                .submitLabel(.done)
+                .submitLabel(.send)
+                .onSubmit { model.returnKeyPressed() }
+                // A vertical TextField inserts return as a line break, so the model reads
+                // each edit and turns a lone break into an offer.
+                .onChange(of: model.draft) { old, new in model.draftChanged(from: old, to: new) }
                 .accessibilityLabel("Your line, line \(session.currentLine + 1)")
                 .legibilityBacking(palette)
 
@@ -81,7 +85,7 @@ struct ComposeView: View {
                 Text("offer this line").font(Theme.poem(20))
             }
             .buttonStyle(.ritual)
-            .disabled(!canSubmit(model))
+            .disabled(!model.canSubmit)
         }
     }
 
@@ -115,10 +119,6 @@ struct ComposeView: View {
         }
         if count == 0 { return "a haiku rests near \(target) syllables here" }
         return "\(count) syllables · near \(target), if you like"
-    }
-
-    private func canSubmit(_ model: AppModel) -> Bool {
-        !model.submitting && !model.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     // MARK: - Their turn
