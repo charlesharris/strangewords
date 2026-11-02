@@ -24,6 +24,9 @@ func Seed(sessionID string) uint64 {
 	return h.Sum64()
 }
 
+// PoemSeed is a deliberately wrong stub (RED) until the per-poem seed lands.
+func PoemSeed(sessionID string, poem int) uint64 { return 0 }
+
 // NextLine returns the robot poet's line for s.CurrentLine. It rebuilds the
 // poet from the session id and replays, discarding the output, every earlier
 // line the bot authored, so the RNG and the poet's used/mine state advance

@@ -101,3 +101,51 @@ func TestFallbackLineIsClean(t *testing.T) {
 		t.Fatalf("fallback %q not CleanLine-identical (%v)", fallbackLine, err)
 	}
 }
+
+func TestPoemSeed(t *testing.T) {
+	for n := 1; n <= 500; n++ {
+		id := fmt.Sprintf("seed-%d", n)
+		if PoemSeed(id, 1) != Seed(id) || PoemSeed(id, 0) != Seed(id) {
+			t.Fatalf("%s: poem 1 (and a pre-Phase-6 blob's poem 0) must keep Seed(id)", id)
+		}
+		if PoemSeed(id, 2) != PoemSeed(id, 2) {
+			t.Fatalf("%s: PoemSeed(id, 2) is not stable", id)
+		}
+		if PoemSeed(id, 2) == Seed(id) {
+			t.Fatalf("%s: poem 2 must not reuse poem 1's seed", id)
+		}
+	}
+}
+
+// poemTwo is botSession for the traded-back second poem.
+func poemTwo(id string, startIndex int, lines []string) *sessions.Session {
+	s := botSession(id, startIndex, lines)
+	s.PoemCount = 2
+	return s
+}
+
+func TestNextLineReplaysPoemTwo(t *testing.T) {
+	for n := 1; n <= 200; n++ {
+		id := fmt.Sprintf("two-%d", n)
+		h := humanLine(n)
+
+		// StartIndex 0: poem 2 starts at index 1, so the bot writes lines 0 and 2.
+		p := poet.New(PoemSeed(id, 2))
+		want0 := p.Line(5, nil)
+		if got := NextLine(poemTwo(id, 0, nil)); got != want0 {
+			t.Fatalf("%s poem 2 line 0: got %q want %q", id, got, want0)
+		}
+		prev := []string{want0, h}
+		want2 := p.Line(5, prev)
+		if got := NextLine(poemTwo(id, 0, prev)); got != want2 {
+			t.Fatalf("%s poem 2 line 2: got %q want %q", id, got, want2)
+		}
+
+		// StartIndex 1: poem 2 starts at index 0, so the bot writes line 1.
+		q := poet.New(PoemSeed(id, 2))
+		want1 := q.Line(7, []string{h})
+		if got := NextLine(poemTwo(id, 1, []string{h})); got != want1 {
+			t.Fatalf("%s poem 2 line 1: got %q want %q", id, got, want1)
+		}
+	}
+}

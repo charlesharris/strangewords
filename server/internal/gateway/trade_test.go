@@ -1,15 +1,18 @@
 package gateway
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"strangewords/internal/metrics"
+	"strangewords/internal/poet"
 	"strangewords/internal/sessions"
 	"strangewords/internal/store"
 )
@@ -200,4 +203,129 @@ func TestTradeTracer(t *testing.T) {
 	if d := testutil.ToFloat64(metrics.Dissolved) - dissolved0; d != 1 {
 		t.Fatalf("Dissolved delta = %v, want 1", d)
 	}
+}
+
+// playBotPoem plays the current poem to completion against the robot poet via
+// rig r: the human writes on its turn, and the bot's turns are served by
+// advancing the fake clock past BotThink and polling. It returns the author
+// index of every line and the final view. Bot lines must be CleanLine-identical
+// and on their syllable target.
+func playBotPoem(t *testing.T, b *botRig, r *rig, tok string, v sessions.View, prefix string) ([]int, sessions.View) {
+	t.Helper()
+	human := []string{"an old silent pond", "a frog jumps into the pond", "splash silence again"}
+	form := sessions.LookupForm("haiku")
+	var authors []int
+	for guard := 0; v.Status == sessions.StatusActive; guard++ {
+		if guard > 10 {
+			t.Fatalf("%s: poem did not finish: %+v", prefix, v)
+		}
+		if v.YourTurn {
+			authors = append(authors, v.CurrentAuthor)
+			v, _ = postLine(t, r, tok, v.SessionID, v.CurrentLine, human[v.CurrentLine], fmt.Sprintf("%s%d", prefix, v.CurrentLine))
+			continue
+		}
+		before := len(v.Lines)
+		b.clock.Advance(b.cfg.BotThink)
+		v, _ = getView(t, r, tok, v.SessionID)
+		if len(v.Lines) != before+1 {
+			t.Fatalf("%s: expected one bot line, had %d now %d", prefix, before, len(v.Lines))
+		}
+		authors = append(authors, 1) // the waiter is index 0, so the bot is index 1
+		line := v.Lines[before]
+		if got, err := sessions.CleanLine(line); err != nil || got != line {
+			t.Fatalf("%s: bot line %q not CleanLine-identical (%v)", prefix, line, err)
+		}
+		if want := *form.Targets[before]; poet.Count(line) != want {
+			t.Fatalf("%s: bot line %q counts %d, want %d", prefix, line, poet.Count(line), want)
+		}
+	}
+	return authors, v
+}
+
+// TestBotTradesBack: the robot poet accepts a human's offer only after its think
+// time, survives a restart, swaps roles, and writes poem 2 (D-06, D-03).
+func TestBotTradesBack(t *testing.T) {
+	ctx := context.Background()
+	for start := 0; start < 2; start++ {
+		offered0 := testutil.ToFloat64(metrics.TradesOffered)
+		begun0 := testutil.ToFloat64(metrics.TradesBegun)
+
+		b := newBotRig(t, nil)
+		er, _ := b.enterWith(t, map[string]any{"allowBot": true})
+		tok := er.ParticipantToken
+		b.clock.Advance(b.cfg.BotWindow)
+		wr, raw := b.poll(t, tok)
+		if wr.State != "matched" || wr.Session == nil {
+			t.Fatalf("start %d: expected matched, got %s", start, raw)
+		}
+		id := wr.Session.SessionID
+		sess, err := b.st.GetSession(ctx, id)
+		if err != nil {
+			t.Fatalf("load: %v", err)
+		}
+		sess.StartIndex = start // force the start order, as dueBot does
+		if err := b.st.SaveSession(ctx, sess); err != nil {
+			t.Fatalf("save: %v", err)
+		}
+		view, _ := getView(t, b.rig, tok, id)
+
+		authors1, view := playBotPoem(t, b, b.rig, tok, view, "p")
+		if view.Status != sessions.StatusComplete {
+			t.Fatalf("start %d: poem 1 should be complete: %+v", start, view)
+		}
+
+		// The human offers; the bot never answers instantly.
+		v, raw := mustTrade(t, b.rig, tok, id)
+		if tf := tradeOf(t, raw); v.Status != sessions.StatusComplete || !tf.YouWantTrade {
+			t.Fatalf("start %d: offer view wrong: %s", start, raw)
+		}
+		_, raw = getView(t, b.rig, tok, id)
+		if tf := tradeOf(t, raw); tf.PartnerWantsTrade || !tf.YouWantTrade || !strings.Contains(string(raw), `"complete"`) {
+			t.Fatalf("start %d: the bot accepted instantly: %s", start, raw)
+		}
+		b.clock.Advance(b.cfg.BotThink - time.Millisecond)
+		if v, raw = getView(t, b.rig, tok, id); v.Status != sessions.StatusComplete {
+			t.Fatalf("start %d: 1ms early the reveal must hold: %s", start, raw)
+		}
+
+		// A server restart between offer and acceptance changes nothing.
+		restarted := b.restart(t)
+		b.clock.Advance(time.Millisecond)
+		v, raw = getView(t, restarted, tok, id)
+		tf := tradeOf(t, raw)
+		if v.Status != sessions.StatusActive || tf.PoemNumber != 2 || !v.PartnerIsBot {
+			t.Fatalf("start %d: poem 2 should have begun: %s", start, raw)
+		}
+		if v.CurrentAuthor != authors1[1] {
+			t.Fatalf("start %d: poem 2 opener = %d, want poem 1's line-1 author %d", start, v.CurrentAuthor, authors1[1])
+		}
+
+		_, view = playBotPoem(t, b, restarted, tok, v, "q")
+		tf = tradeOf(t, mustGet(t, restarted, tok, id))
+		if view.Status != sessions.StatusComplete || tf.PoemNumber != 2 || tf.TradeOpen {
+			t.Fatalf("start %d: poem 2 reveal wrong: %+v", start, view)
+		}
+		if code, raw := postTrade(restarted, tok, id); code != http.StatusConflict || !strings.Contains(string(raw), `"trade_closed"`) {
+			t.Fatalf("start %d: trade after poem 2 = %d %s", start, code, raw)
+		}
+
+		code, raw := restarted.do(t, "POST", "/v1/session/"+id+"/dismiss", tok, nil)
+		if code != http.StatusOK || !strings.Contains(string(raw), `"dissolved"`) {
+			t.Fatalf("start %d: single dismiss should dissolve: %d %s", start, code, raw)
+		}
+		assertNoKeysWithPrefix(t, b.mr, "sw:")
+
+		if d := testutil.ToFloat64(metrics.TradesOffered) - offered0; d != 1 {
+			t.Fatalf("start %d: TradesOffered delta = %v, want 1", start, d)
+		}
+		if d := testutil.ToFloat64(metrics.TradesBegun) - begun0; d != 1 {
+			t.Fatalf("start %d: TradesBegun delta = %v, want 1", start, d)
+		}
+	}
+}
+
+func mustGet(t *testing.T, r *rig, token, id string) []byte {
+	t.Helper()
+	_, raw := getView(t, r, token, id)
+	return raw
 }
