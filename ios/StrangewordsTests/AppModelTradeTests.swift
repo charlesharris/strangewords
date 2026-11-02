@@ -200,6 +200,113 @@ struct AppModelTradeTests {
         await finish(model, rig.fake, rig.cleanup)
     }
 
+    // MARK: - Keepsakes (D-04)
+
+    private static let poemTwoLines = ["lanterns drift down the dark stream",
+                                       "snow settles on the still pine", "frost"]
+
+    /// Poem 2's reveal: the trade has run its course, so no further trade is open.
+    private static func poemTwoComplete() -> SessionView {
+        haikuView(status: "complete", currentLine: 3, yourTurn: false,
+                  lines: poemTwoLines, poemNumber: 2)
+    }
+
+    /// A full trade leaves two keepsakes: poem 1's is coined as poem 2 begins
+    /// (a trade never dissolves poem 1), and poem 2's at dissolution.
+    @Test func fullTradeLeavesTwoKeepsakes() async throws {
+        let rig = Rig()
+        let model = rig.model
+        _ = try await Self.openReveal(rig, Self.reveal())
+
+        model.tradeBack()
+        let trade = try await rig.arrivals.next()
+        #expect(trade.kind == .tradeBack)
+        let two = Self.poemTwo(yourTurn: true)
+        trade.resolve(two)
+        await model.actionTask?.value
+
+        let coinOne = try #require(PoemNaming.coin(from: Self.poem))
+        #expect(model.phase == .composing(two))
+        #expect(model.keepsakes == [coinOne])
+
+        // Poem 2's last line completes it; its reveal offers no further trade.
+        model.draft = Self.poemTwoLines[0]
+        model.submit()
+        let submit = try await rig.arrivals.next()
+        #expect(submit.kind == .submitLine)
+        let completeTwo = Self.poemTwoComplete()
+        submit.resolve(completeTwo)
+        await model.actionTask?.value
+        #expect(model.phase == .reveal(completeTwo))
+        #expect(model.pollTask == nil)
+
+        model.release()
+        await model.actionTask?.value
+        model.finishDissolving()
+
+        let coinTwo = try #require(PoemNaming.coin(from: Self.poemTwoLines))
+        #expect(model.keepsakes == [coinOne, coinTwo])
+        #expect(model.phase == .dissolved(.completedAndGone))
+
+        await finish(model, rig.fake, rig.cleanup)
+    }
+
+    /// A partner leaving during poem 2 still shows poem 1's name.
+    @Test func partnerLeavingPoemTwoKeepsPoemOnesName() async throws {
+        let rig = Rig()
+        let model = rig.model
+        _ = try await Self.openReveal(rig, Self.reveal())
+
+        model.tradeBack()
+        let trade = try await rig.arrivals.next()
+        let two = Self.poemTwo(yourTurn: false)
+        trade.resolve(two)
+        await model.actionTask?.value
+        #expect(model.phase == .composing(two))
+
+        let poll = try await rig.arrivals.next()
+        #expect(poll.kind == .getSession)
+        let loop = model.pollTask
+        poll.fail(APIError.gone)
+        await loop?.value
+
+        let coinOne = try #require(PoemNaming.coin(from: Self.poem))
+        #expect(model.phase == .dissolved(.partnerLeft))
+        #expect(model.keepsakes == [coinOne])
+
+        await finish(model, rig.fake, rig.cleanup)
+    }
+
+    /// A single poem leaves exactly one keepsake; reset() empties the list and
+    /// begin() keeps it empty.
+    @Test func aSinglePoemLeavesOneKeepsakeAndBeginClearsIt() async throws {
+        let rig = Rig()
+        let model = rig.model
+        try await rig.beginMatched(Self.reveal(tradeOpen: false))
+
+        model.release()
+        await model.actionTask?.value
+        model.finishDissolving()
+
+        let expected = try #require(PoemNaming.coin(from: Self.poem))
+        #expect(model.keepsakes == [expected])
+        #expect(model.phase == .dissolved(.completedAndGone))
+
+        model.reset()
+        #expect(model.keepsakes.isEmpty)
+
+        model.begin()
+        #expect(model.keepsakes.isEmpty)
+        let enter = try await rig.arrivals.next()
+        #expect(enter.kind == .enter)
+        enter.resolve(EnterResponse(participantToken: "tok2", state: "matched",
+                                    session: haikuView(id: "s2"), waitId: nil))
+        await model.actionTask?.value
+        #expect(model.keepsakes.isEmpty)
+
+        await finish(model, rig.fake, rig.cleanup)
+    }
+
     /// tradeBack() does nothing outside an open reveal we have not already asked on:
     /// no request is made and no new action task is created, so the check cannot race
     /// a call that is still on its way.

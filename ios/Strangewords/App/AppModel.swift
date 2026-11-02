@@ -42,6 +42,11 @@ final class AppModel {
     /// dissolution (see `Naming/PoemNaming.swift`). Set only when a poem completes;
     /// nil for every other ending. Read by `DissolvedView`.
     private(set) var keepsake: CoinedName?
+    /// One coined name per completed poem (Phase 6 D-04), the only things that
+    /// survive a dissolution. In memory only, never persisted or sent. Cleared by
+    /// `begin()` and `reset()`, and kept through `dissolve()` so `DissolvedView`
+    /// can show them.
+    private(set) var keepsakes: [CoinedName] = []
 
     /// The user's opt-in to write with the robot poet when no stranger arrives
     /// (Phase 5 D-01, D-02). Default OFF; writes through to `SettingsStore`.
@@ -115,6 +120,7 @@ final class AppModel {
         let allow = allowBot   // captured now: the opt-in is for this one wait
         Haptics.soft()
         keepsake = nil
+        keepsakes = []
         phase = .connecting
         actionTask = Task {
             do {
@@ -284,6 +290,7 @@ final class AppModel {
         draft = ""
         submitError = nil
         keepsake = nil
+        keepsakes = []
         phase = .threshold
     }
 

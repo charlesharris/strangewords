@@ -75,7 +75,7 @@ struct StepAwayTests {
         #expect(!calls.contains(.submitLine))
         #expect(model.phase == .dissolved(.ended))
         #expect(rig.identityIsClear)
-        #expect(model.keepsake == nil)
+        #expect(model.keepsakes.isEmpty)
 
         await finish(model, rig.fake, rig.cleanup)
     }
@@ -134,7 +134,7 @@ struct StepAwayTests {
         #expect(model.phase == .dissolved(.ended))
         #expect(calls.filter { $0 == .leave }.count == 1)
         #expect(rig.identityIsClear)
-        #expect(model.keepsake == nil)
+        #expect(model.keepsakes.isEmpty)
         #expect(model.pollTask == nil)
 
         await finish(model, rig.fake, rig.cleanup)

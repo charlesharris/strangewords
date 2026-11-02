@@ -186,9 +186,8 @@ struct AppModelTests {
         #expect(afterRelease.last == .dismiss)
 
         model.finishDissolving()
-        let expectedName = PoemNaming.coin(from: [l1, l2, l3])
-        #expect(expectedName != nil)
-        #expect(model.keepsake == expectedName)
+        let expectedName = try #require(PoemNaming.coin(from: [l1, l2, l3]))
+        #expect(model.keepsakes == [expectedName])
         #expect(model.phase == .dissolved(.completedAndGone))
         #expect(rig.identityIsClear)
 
@@ -212,7 +211,7 @@ struct AppModelTests {
 
         model.reset()
         #expect(model.phase == .threshold)
-        #expect(model.keepsake == nil)
+        #expect(model.keepsakes.isEmpty)
         #expect(model.draft == "")
         #expect(model.submitError == nil)
 
@@ -563,7 +562,7 @@ struct AppModelTests {
         model.reset()
 
         #expect(model.phase == .threshold)
-        #expect(model.keepsake == nil)
+        #expect(model.keepsakes.isEmpty)
         #expect(model.draft == "")
         #expect(model.submitError == nil)
 
