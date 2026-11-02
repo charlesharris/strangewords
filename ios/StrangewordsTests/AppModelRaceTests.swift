@@ -172,4 +172,65 @@ struct AppModelRaceTests {
 
         await finish(model, rig.fake, rig.cleanup)
     }
+
+    // MARK: - Reveal and trade (Phase 6)
+
+    private static let poem = ["an old silent pond", "a frog jumps into the pond", "splash silence again"]
+
+    /// An open poem-1 reveal: the server says the trade can still be offered.
+    private static func openReveal() -> SessionView {
+        haikuView(status: "complete", currentLine: 3, yourTurn: false, lines: poem, tradeOpen: true)
+    }
+
+    /// The user lets the poem go while the reveal poll is in flight. The poll comes
+    /// back with poem 2 begun, and must not pull the model out of dissolving.
+    /// `release()` has to stop the poll and end the generation (T-06-11).
+    @Test func revealPollLandingAfterReleaseIsIgnored() async throws {
+        let rig = Rig()
+        let model = rig.model
+        let reveal = Self.openReveal()
+        try await rig.beginMatched(reveal)
+
+        let poll = try await rig.arrivals.next()
+        #expect(poll.kind == .getSession)
+        let stale = model.pollTask
+        model.release()
+        #expect(model.phase == .dissolving(reveal))
+        #expect(model.pollTask == nil)
+
+        poll.resolve(haikuView(status: "active", currentLine: 0, yourTurn: true, lines: [], poemNumber: 2))
+        await stale?.value
+
+        #expect(model.phase == .dissolving(reveal))
+
+        await finish(model, rig.fake, rig.cleanup)
+    }
+
+    /// The user lets the poem go while their own trade-back is in flight. The
+    /// server's answer (poem 2 begun) must not undo the let-go, and the dissolution
+    /// still reaches `.dissolved` with identity cleared.
+    @Test func tradeResponseLandingAfterReleaseIsIgnored() async throws {
+        let rig = Rig()
+        let model = rig.model
+        let reveal = Self.openReveal()
+        try await rig.beginMatched(reveal)
+        _ = try await rig.arrivals.next() // the reveal poll parks
+
+        model.tradeBack()
+        let trade = try await rig.arrivals.next()
+        #expect(trade.kind == .tradeBack)
+        let stale = model.actionTask
+        model.release()
+        #expect(model.phase == .dissolving(reveal))
+
+        trade.resolve(haikuView(status: "active", currentLine: 0, yourTurn: true, lines: [], poemNumber: 2))
+        await stale?.value
+
+        #expect(model.phase == .dissolving(reveal))
+        model.finishDissolving()
+        #expect(model.phase == .dissolved(.completedAndGone))
+        #expect(rig.identityIsClear)
+
+        await finish(model, rig.fake, rig.cleanup)
+    }
 }
