@@ -184,6 +184,60 @@ struct AppModelTradeTests {
         await finish(model, rig.fake, rig.cleanup)
     }
 
+    /// A double tap on the accept sends exactly one request: `tradeBack()` sets
+    /// `trading` synchronously, so the second call returns before any network call.
+    /// Poem 2 then opens normally and its poll is running (CR-01).
+    @Test func secondTradeBackWhileInFlightSendsNoSecondRequest() async throws {
+        let rig = Rig()
+        let model = rig.model
+        _ = try await Self.openReveal(rig, Self.reveal())
+
+        model.tradeBack()
+        model.tradeBack()   // the double tap, before any response has landed
+        let trade = try await rig.arrivals.next()
+        #expect(trade.kind == .tradeBack)
+        let two = Self.poemTwo(yourTurn: false)
+        trade.resolve(two)
+        await model.actionTask?.value
+
+        #expect(model.phase == .composing(two))
+        #expect(model.pollTask != nil)
+        let calls = await rig.fake.recordedCalls()
+        #expect(calls.filter { $0 == .tradeBack }.count == 1)
+
+        await finish(model, rig.fake, rig.cleanup)
+    }
+
+    /// A late 409/410 landing after poem 2 has begun never cancels poem 2's poll:
+    /// `closeTrade` acts only while the reveal is on screen (CR-01).
+    @Test func lateTradeFailureAfterPoemTwoBeganKeepsThePollRunning() async throws {
+        let rig = Rig()
+        let model = rig.model
+        let revealPoll = try await Self.openReveal(rig, Self.reveal())
+
+        model.tradeBack()
+        let trade = try await rig.arrivals.next()
+        #expect(trade.kind == .tradeBack)
+
+        // The reveal poll sees poem 2 begin first (the partner's accept raced us).
+        let loop = model.pollTask
+        let two = Self.poemTwo(yourTurn: false)
+        revealPoll.resolve(two)
+        await loop?.value
+        #expect(model.phase == .composing(two))
+        let sessionPoll = try await rig.arrivals.next()
+        #expect(sessionPoll.kind == .getSession)
+
+        // Our own trade call then comes back 409 trade_closed (wrongTurn).
+        trade.fail(APIError.wrongTurn)
+        await model.actionTask?.value
+
+        #expect(model.phase == .composing(two))
+        #expect(model.pollTask != nil)
+
+        await finish(model, rig.fake, rig.cleanup)
+    }
+
     /// A transient failure leaves the reveal as it was, so the user may tap again.
     @Test func transientTradeFailureLeavesTheRevealOpen() async throws {
         let rig = Rig()

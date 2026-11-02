@@ -72,6 +72,9 @@ final class AppModel {
     /// The in-flight action task (begin, resume, submit, release, leave). It gives
     /// tests a deterministic sync point (Phase 2 D-07); views never read it.
     @ObservationIgnored private(set) var actionTask: Task<Void, Never>?
+    /// True while one trade-back call is in flight (Phase 6). `tradeBack()` sets it
+    /// synchronously and refuses re-entry, so a double tap sends exactly one request.
+    @ObservationIgnored private var trading = false
     /// A session generation. `begin`, `reset`, `dissolve` and `release` bump it; any
     /// writer that captured an older value is stale and must not touch state or
     /// identity (D-08). Letting the poem go ends the generation for every in-flight
@@ -206,11 +209,17 @@ final class AppModel {
     /// never fires there. A trade transition stays inside the current epoch, because
     /// it is the same session and the same token. No haptic here: the view plays it,
     /// as with "let it go".
+    ///
+    /// Single-flight, like `submit()` with `submitting`: `trading` is set
+    /// synchronously before the Task and cleared on every exit path, so a double
+    /// tap's second call returns before any network call is made.
     func tradeBack() {
-        guard case .reveal(let s) = phase, s.tradeOpen, !s.youWantTrade,
+        guard !trading, case .reveal(let s) = phase, s.tradeOpen, !s.youWantTrade,
               let token = tokenStore.token else { return }
+        trading = true
         let e = epoch
         actionTask = Task {
+            defer { trading = false }
             do {
                 let updated = try await api.tradeBack(id: s.sessionId, token: token)
                 guard !isStale(e) else { return }
@@ -343,14 +352,15 @@ final class AppModel {
     }
 
     /// The trade has passed (declined, closed or lapsed). The reveal stays and the
-    /// user lets the poem go as today (D-02); only the offer disappears.
+    /// user lets the poem go as today (D-02); only the offer disappears. It acts
+    /// only while the reveal is on screen: a late 409/410 landing after poem 2 has
+    /// begun must never cancel poem 2's poll.
     private func closeTrade(asked: Bool) {
-        if case .reveal(let s) = phase {
-            var closed = s
-            closed.tradeOpen = false
-            if asked { closed.youWantTrade = true }
-            phase = .reveal(closed)
-        }
+        guard case .reveal(let s) = phase else { return }
+        var closed = s
+        closed.tradeOpen = false
+        if asked { closed.youWantTrade = true }
+        phase = .reveal(closed)
         stopPolling()
     }
 
