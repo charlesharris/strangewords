@@ -50,8 +50,8 @@ func TestPrivacyPage(t *testing.T) {
 	for _, want := range []string{
 		"strange words privacy policy",
 		"privacy@strangewords.app",
-		`datetime="2026-10-29"`,
-		"october 29, 2026",
+		`datetime="2026-11-02"`,
+		"november 2, 2026",
 	} {
 		if !strings.Contains(lower, want) {
 			t.Errorf("page missing %q", want)
