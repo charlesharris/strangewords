@@ -2,10 +2,12 @@ import SwiftUI
 
 /// The gentle conclusion. Invites return, never apologizes (brief.v4.md §8).
 ///
-/// When a poem actually *completed*, the dissolution leaves one durable thing
-/// behind: a name it coined for itself (see `Naming/PoemNaming.swift`). The poem
-/// is still gone; this is the keepsake. Every other ending (a stranger left, no
-/// one came) shows the plain farewell.
+/// Every *completed* poem leaves one durable thing behind: a name it coined for
+/// itself (see `Naming/PoemNaming.swift`) — one name per completed poem, two
+/// after a trade back (Phase 6 D-04). The poems are still gone; these are the
+/// keepsakes. An ending with no completed poem (a stranger left, no one came)
+/// shows the plain farewell; an interrupted second poem shows its farewell line
+/// above poem 1's name.
 struct DissolvedView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.palette) private var palette
@@ -14,8 +16,8 @@ struct DissolvedView: View {
 
     var body: some View {
         Group {
-            if reason == .completedAndGone, let keepsake = model.keepsake {
-                keepsakeBody(keepsake)
+            if !model.keepsakes.isEmpty {
+                keepsakeBody(model.keepsakes)
             } else {
                 farewellBody
             }
@@ -23,24 +25,37 @@ struct DissolvedView: View {
         .onAppear { appeared = true }
     }
 
-    // MARK: - The keepsake the poem left behind
+    // MARK: - The keepsakes the poems left behind
 
     /// What VoiceOver reads for the coined names, one sentence per keepsake.
     static func keepsakeAccessibility(_ keepsakes: [CoinedName]) -> String {
         keepsakes.map { "\($0.lead) \($0.name)." }.joined(separator: " ")
     }
 
-    private func keepsakeBody(_ keepsake: CoinedName) -> some View {
+    private func keepsakeBody(_ keepsakes: [CoinedName]) -> some View {
         VStack(spacing: 32) {
             Spacer()
-            VStack(spacing: 16) {
-                Text(keepsake.lead)
-                    .font(Theme.chrome)
-                    .foregroundStyle(palette.secondary)
-                Text(keepsake.name)
-                    .font(Theme.display(34))
+            // A partner left, or you stepped away, during poem 2 after a trade:
+            // say so first, then still show what completed.
+            if reason != .completedAndGone {
+                Text(message)
+                    .font(Theme.poem(22))
                     .foregroundStyle(palette.ink)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(.center)
+                    .skyTextBacking(palette)
+            }
+            VStack(spacing: 28) {
+                ForEach(Array(keepsakes.enumerated()), id: \.offset) { _, keepsake in
+                    VStack(spacing: 16) {
+                        Text(keepsake.lead)
+                            .font(Theme.chrome)
+                            .foregroundStyle(palette.secondary)
+                        Text(keepsake.name)
+                            .font(Theme.display(34))
+                            .foregroundStyle(palette.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
             }
             .multilineTextAlignment(.center)
             .skyTextBacking(palette)
@@ -52,7 +67,9 @@ struct DissolvedView: View {
             Spacer().frame(height: 40)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Self.keepsakeAccessibility([keepsake]))
+        .accessibilityLabel(reason == .completedAndGone
+            ? Self.keepsakeAccessibility(keepsakes)
+            : message + " " + Self.keepsakeAccessibility(keepsakes))
     }
 
     // MARK: - The plain farewell

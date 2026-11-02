@@ -24,28 +24,25 @@ final class AppModel {
         case ended              // generic clean end
     }
 
-    // Small helpers used to detect meaningful phase transitions (e.g. for haptics).
+    // Small helpers used to detect meaningful phase transitions (e.g. for haptics)
+    // and to read the outgoing reveal at a trade transition (D-04).
     private var composingSession: SessionView? {
         if case .composing(let s) = phase { return s }
         return nil
     }
-    private var isReveal: Bool {
-        if case .reveal = phase { return true }
-        return false
+    private var revealSession: SessionView? {
+        if case .reveal(let s) = phase { return s }
+        return nil
     }
 
     private(set) var phase: Phase = .threshold
     var draft: String = ""
     private(set) var submitError: String?
     private(set) var submitting = false
-    /// The name this poem coined on its way out — the one thing that survives the
-    /// dissolution (see `Naming/PoemNaming.swift`). Set only when a poem completes;
-    /// nil for every other ending. Read by `DissolvedView`.
-    private(set) var keepsake: CoinedName?
-    /// One coined name per completed poem (Phase 6 D-04), the only things that
-    /// survive a dissolution. In memory only, never persisted or sent. Cleared by
-    /// `begin()` and `reset()`, and kept through `dissolve()` so `DissolvedView`
-    /// can show them.
+    /// One coined name per completed poem (Phase 6 D-04, see
+    /// `Naming/PoemNaming.swift`) — the only things that survive a dissolution.
+    /// In memory only, never persisted or sent. Cleared by `begin()` and
+    /// `reset()`, and kept through `dissolve()` so `DissolvedView` can show them.
     private(set) var keepsakes: [CoinedName] = []
 
     /// The user's opt-in to write with the robot poet when no stranger arrives
@@ -119,7 +116,6 @@ final class AppModel {
         let e = epoch
         let allow = allowBot   // captured now: the opt-in is for this one wait
         Haptics.soft()
-        keepsake = nil
         keepsakes = []
         phase = .connecting
         actionTask = Task {
@@ -262,8 +258,8 @@ final class AppModel {
     /// The dissolution effect finished; let the poem go. As it goes, coin the one
     /// name it leaves behind (while the lines are still in hand).
     func finishDissolving() {
-        if case .dissolving(let s) = phase {
-            keepsake = PoemNaming.coin(from: s.lines)
+        if case .dissolving(let s) = phase, let coined = PoemNaming.coin(from: s.lines) {
+            keepsakes.append(coined)
         }
         dissolve(.completedAndGone)
     }
@@ -289,7 +285,6 @@ final class AppModel {
         stopPolling()
         draft = ""
         submitError = nil
-        keepsake = nil
         keepsakes = []
         phase = .threshold
     }
@@ -312,12 +307,21 @@ final class AppModel {
         // Read the outgoing phase before mutating, to detect real transitions.
         let wasComposing = composingSession != nil
         let wasYourTurn = composingSession?.yourTurn ?? false
-        let wasReveal = isReveal
+        let outgoingReveal = revealSession
+        let wasReveal = outgoingReveal != nil
 
         tokenStore.sessionId = s.sessionId
         stopPolling()
         switch s.status {
         case "active":
+            // The trade back does not dissolve poem 1, so its name is coined
+            // here, while its lines are still in hand, as poem 2 begins (D-04).
+            // Coining happens exactly once per poem, because the next poem's
+            // apply starts from .composing, not .reveal.
+            if let outgoing = outgoingReveal, s.poemNumber > outgoing.poemNumber,
+               let coined = PoemNaming.coin(from: outgoing.lines) {
+                keepsakes.append(coined)
+            }
             phase = .composing(s)
             if !wasComposing {
                 Haptics.arrival()                 // matched with a stranger
