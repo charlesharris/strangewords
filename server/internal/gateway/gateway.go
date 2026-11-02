@@ -397,28 +397,66 @@ func (s *Server) handleLeave(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "dissolved"})
 }
 
+// handleDismiss is "let it go". It runs on the same compare-and-set as the trade
+// so a stale plain write can never revert a just-begun poem 2 to poem 1's reveal
+// (DEC-06-01):
+//   - Active poem 2 (a trade already began): a single dismiss dissolves. It is a
+//     trade-decline that lost the race to the partner's accept, and declining
+//     dissolves (D-02).
+//   - Any other state (a reveal of either poem, or an active poem 1) keeps HEAD's
+//     all-must-dismiss behavior, plus clearing the caller's WantsTrade so letting
+//     go withdraws any offer (D-02).
 func (s *Server) handleDismiss(w http.ResponseWriter, r *http.Request) {
 	sess, token, idx, ok := s.authSession(w, r)
 	if !ok {
 		return
 	}
-	sess.Participants[idx].Dismissed = true
-	allDismissed := true
-	for _, p := range sess.Participants {
-		if !p.Dismissed {
-			allDismissed = false
-			break
+	ctx := r.Context()
+	var gone bool
+	fresh, err := s.updateSession(ctx, sess.ID, func(f *sessions.Session) (time.Duration, bool) {
+		gone = false
+		if idx < 0 || idx >= len(f.Participants) {
+			return 0, false
 		}
+		if f.Status == sessions.StatusActive && f.PoemCount > 1 {
+			// DEC-06-01: a trade-decline that lost the race to the partner's accept
+			// dissolves, per D-02. PoemCount is not max-normalized, so a legacy blob
+			// with PoemCount 0 takes the poem-1 path below.
+			gone = true
+			return 0, false
+		}
+		f.Participants[idx].Dismissed = true
+		f.Participants[idx].WantsTrade = false // letting go withdraws any offer (D-02)
+		gone = true
+		for _, p := range f.Participants {
+			if !p.Dismissed {
+				gone = false
+				break
+			}
+		}
+		if gone {
+			return 0, false
+		}
+		// Preserve the reveal countdown rather than extending it.
+		return store.RevealTTL, true
+	})
+	switch {
+	case errors.Is(err, store.ErrNotFound):
+		s.fail(w, errGone)
+		return
+	case errors.Is(err, store.ErrConflict):
+		writeErr(w, http.StatusServiceUnavailable, "busy", "the poem moved; try again")
+		return
+	case err != nil:
+		s.fail(w, err)
+		return
 	}
-	if allDismissed {
-		s.dissolve(r.Context(), sess)
+	if gone {
+		s.dissolve(ctx, fresh)
 		writeJSON(w, http.StatusOK, map[string]string{"status": "dissolved"})
 		return
 	}
-	// Preserve the reveal countdown rather than extending it.
-	_ = s.st.SaveSessionTTL(r.Context(), sess, store.RevealTTL)
-	v := sess.ViewFor(token)
-	writeJSON(w, http.StatusOK, v)
+	writeJSON(w, http.StatusOK, fresh.ViewFor(token))
 }
 
 // handleTrade is the trade-back offer and its acceptance: one endpoint, one
